@@ -7,10 +7,10 @@ public class ColorInformation {
    public final Color ambient;
    public final Color diffuse;
    public final Color specular;
-   public final double shininess;
+   public final float shininess;
    public final boolean isMirror;
 
-   public ColorInformation(final Color emission, final Color ambient, final Color diffuse, final Color specular, final double shininess, final boolean isMirror) {
+   public ColorInformation(final Color emission, final Color ambient, final Color diffuse, final Color specular, final float shininess, final boolean isMirror) {
       this.emission = emission;
       this.ambient = ambient;
       this.diffuse = diffuse;
@@ -28,7 +28,7 @@ public class ColorInformation {
    }
 
    public ColorInformation(final Color emission, final boolean isMirror) {
-      this(emission, new Color(0.2f, 0.2f, 0.2f, 1.0f), new Color(0.8f, 0.8f, 0.8f, 1.0f), new Color(0.8f, 0.8f, 0.8f,
-            1.0f), 10, isMirror);
+      // this(emission, new Color(0.8f, 0.8f, 0.8f, 1.0f), new Color(0.8f, 0.8f, 0.8f, 1.0f), new Color(0.8f, 0.8f, 0.8f, 1.0f), 10, isMirror);
+      this(emission, emission, emission, emission, 50, isMirror);
    }
 }

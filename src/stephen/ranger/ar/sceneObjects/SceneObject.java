@@ -2,7 +2,7 @@ package stephen.ranger.ar.sceneObjects;
 
 import java.awt.Color;
 
-import javax.vecmath.Vector3d;
+import javax.vecmath.Vector3f;
 
 import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
@@ -12,7 +12,7 @@ import stephen.ranger.ar.bounds.BoundingVolume;
 
 public abstract class SceneObject {
     public final ColorInformation colorInfo;
-    public BoundingVolume boundingVolume = new BoundingSphere(this, new Vector3d(), 0);
+    public BoundingVolume boundingVolume = new BoundingSphere(this, new Vector3f(), 0);
 
     /**
      * Creates a new SceneObject instance.

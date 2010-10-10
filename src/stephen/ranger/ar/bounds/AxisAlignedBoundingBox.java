@@ -2,8 +2,6 @@ package stephen.ranger.ar.bounds;
 
 import java.awt.Color;
 
-import javax.vecmath.Vector3d;
-
 import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
@@ -12,36 +10,38 @@ import stephen.ranger.ar.sceneObjects.SceneObject;
 
 public class AxisAlignedBoundingBox extends BoundingVolume {
    public final SceneObject child;
-   public final Vector3d[] minMax;
-   
-   public AxisAlignedBoundingBox(final SceneObject child, final double minX, final double minY, final double minZ, final double maxX, final double maxY,
-         final double maxZ) {
+   public final float[][] minMax;
+
+   public AxisAlignedBoundingBox(final SceneObject child, final float minX, final float minY, final float minZ, final float maxX, final float maxY,
+         final float maxZ) {
       this.child = child;
-      minMax = new Vector3d[] { new Vector3d(minX, minY, minZ), new Vector3d(maxX, maxY, maxZ) };
+      this.minMax = new float[2][];
+      this.minMax[0] = new float[] { minX, minY, minZ };
+      this.minMax[1] = new float[] { maxX, maxY, maxZ };
    }
-   
+
    @Override
    public IntersectionInformation getChildIntersection(final Ray ray) {
-      return intersects(ray) ? child.getIntersection(ray) : null;
+      return this.intersects(ray) ? this.child.getIntersection(ray) : null;
    }
-   
+
    @Override
    public boolean intersects(final Ray r) {
-      return RTStatics.aabbIntersection(r, getMinMax());
+      return RTStatics.aabbIntersection(r, this.getMinMax());
    }
-   
+
    @Override
-   public Vector3d[] getMinMax() {
-      return new Vector3d[] { new Vector3d(minMax[0]), new Vector3d(minMax[1]) };
+   public float[][] getMinMax() {
+      return this.minMax;
    }
-   
+
    @Override
    public Color getColor(final IntersectionInformation info) {
-      return child.getColor(info);
+      return this.child.getColor(info);
    }
-   
+
    @Override
    public ColorInformation getColorInformation(final IntersectionInformation info) {
-      return child.colorInfo;
+      return this.child.colorInfo;
    }
 }

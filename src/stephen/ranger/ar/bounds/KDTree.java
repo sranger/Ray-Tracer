@@ -1,87 +1,98 @@
 package stephen.ranger.ar.bounds;
 
 import java.awt.Color;
-
-import javax.vecmath.Vector3d;
+import java.util.Arrays;
 
 import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
+import stephen.ranger.ar.sceneObjects.TriangleMesh;
 
 public class KDTree extends BoundingVolume {
 
-    public static final int MAX_DEPTH = 20;
+   public static final int MAX_DEPTH = 20;
 
-    public static enum SeparationAxis {
-        X, Y, Z;
+   public static enum SeparationAxis {
+      X(0), Y(1), Z(2);
 
-        public SeparationAxis getNextAxis() {
-            return equals(X) ? Y : equals(Y) ? Z : X;
-        }
-    }
+      public final int pos;
 
-    public final BoundingVolume[] children;
-    public final Vector3d[] minMax = new Vector3d[] { new Vector3d(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE), new Vector3d(-Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE) };
+      private SeparationAxis(final int pos) {
+         this.pos = pos;
+      }
 
-    public final KDNode rootNode;
+      public SeparationAxis getNextAxis() {
+         return this.equals(X) ? Y : this.equals(Y) ? Z : X;
+      }
+   }
 
-    public KDTree(final BoundingVolume[] children) {
-        this.children = children;
+   private final float[][] minMax = new float[2][];
+   private final KDNode rootNode;
+   private final float[][] vertices;
+   private final float[][] normals;
+   private final int[][] indices;
+   private final TriangleMesh parentMesh;
 
-        for (final BoundingVolume child : children) {
-            final Vector3d[] minMax = child.getMinMax();
+   private final ColorInformation colorInfo;
 
-            this.minMax[0].x = Math.min(minMax[0].x, this.minMax[0].x);
-            this.minMax[1].x = Math.max(minMax[1].x, this.minMax[1].x);
+   public KDTree(final TriangleMesh parentMesh, final float[][] vertices, final float[][] normals, final int[][] indices, final ColorInformation colorInfo) {
+      this.parentMesh = parentMesh;
+      this.vertices = vertices;
+      this.normals = normals;
+      this.indices = indices;
+      this.colorInfo = colorInfo;
 
-            this.minMax[0].y = Math.min(minMax[0].y, this.minMax[0].y);
-            this.minMax[1].y = Math.max(minMax[1].y, this.minMax[1].y);
+      this.minMax[0] = new float[] { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE };
+      this.minMax[1] = new float[] { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE };
 
-            this.minMax[0].z = Math.min(minMax[0].z, this.minMax[0].z);
-            this.minMax[1].z = Math.max(minMax[1].z, this.minMax[1].z);
-        }
+      for (final float[] vertice : vertices) {
+         this.minMax[0][0] = Math.min(vertice[0], this.minMax[0][0]);
+         this.minMax[1][0] = Math.max(vertice[0], this.minMax[1][0]);
 
-        System.out.println("creating KD Tree...");
-        final long startTime = System.nanoTime();
-        rootNode = new KDNode(children, minMax, SeparationAxis.X, 0);
-        final long endTime = System.nanoTime();
+         this.minMax[0][1] = Math.min(vertice[1], this.minMax[0][1]);
+         this.minMax[1][1] = Math.max(vertice[1], this.minMax[1][1]);
 
-        System.out.println("min: " + minMax[0]);
-        System.out.println("max: " + minMax[1]);
+         this.minMax[0][2] = Math.min(vertice[2], this.minMax[0][2]);
+         this.minMax[1][2] = Math.max(vertice[2], this.minMax[1][2]);
+      }
 
-        System.out.println("KD Tree computation duration: " + (endTime - startTime) / 1000000000. + " seconds");
-    }
+      System.out.println("creating KD Tree...");
+      final long startTime = System.nanoTime();
+      this.rootNode = new KDNode(parentMesh, this.vertices, this.normals, this.indices, this.minMax, SeparationAxis.X, 0, colorInfo);
+      final long endTime = System.nanoTime();
 
-    @Override
-    public IntersectionInformation getChildIntersection(final Ray ray) {
-        return rootNode.getChildIntersection(ray);
-    }
+      System.out.println("min/max: " + Arrays.toString(this.minMax[0]) + ", " + Arrays.toString(this.minMax[1]));
 
-    @Override
-    public boolean intersects(final Ray ray) {
-        return RTStatics.aabbIntersection(ray, getMinMax());
-    }
+      System.out.println("KD Tree computation duration: " + (endTime - startTime) / 1000000000. + " seconds");
+   }
 
-    @Override
-    public Vector3d[] getMinMax() {
-        return minMax;
-    }
+   @Override
+   public IntersectionInformation getChildIntersection(final Ray ray) {
+      if (this.intersects(ray)) {
+         return this.rootNode.getChildIntersection(ray);
+      } else {
+         return null;
+      }
+   }
 
-    @Override
-    public Color getColor(final IntersectionInformation info) {
-        return info.intersectionObject.getColor(info);
-    }
+   @Override
+   public boolean intersects(final Ray ray) {
+      return RTStatics.aabbIntersection(ray, this.getMinMax());
+   }
 
-    @Override
-    public ColorInformation getColorInformation(final IntersectionInformation info) {
-        if (info.intersectionObject instanceof AxisAlignedBoundingBox) {
-            return ((AxisAlignedBoundingBox) info.intersectionObject).child.colorInfo;
-        } else if (info.intersectionObject instanceof BoundingSphere) {
-            return ((BoundingSphere) info.intersectionObject).child.colorInfo;
-        } else {
-            // shouldn't happen
-            return null;
-        }
-    }
+   @Override
+   public float[][] getMinMax() {
+      return this.minMax;
+   }
+
+   @Override
+   public Color getColor(final IntersectionInformation info) {
+      return this.colorInfo.emission;
+   }
+
+   @Override
+   public ColorInformation getColorInformation(final IntersectionInformation info) {
+      return this.colorInfo;
+   }
 }

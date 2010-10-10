@@ -2,7 +2,7 @@ package stephen.ranger.ar.sceneObjects;
 
 import java.awt.Color;
 
-import javax.vecmath.Vector3d;
+import javax.vecmath.Vector3f;
 
 import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
@@ -11,18 +11,18 @@ import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.bounds.AxisAlignedBoundingBox;
 
 public class Triangle extends SceneObject {
-   public final Vector3d[] p0, p1, p2;
-   public final Vector3d faceNormal;
+   public final Vector3f[] p0, p1, p2;
+   public final Vector3f faceNormal;
    public final ColorInformation colorInfo;
 
-   public final double minX, maxX, minY, maxY, minZ, maxZ;
+   public final float minX, maxX, minY, maxY, minZ, maxZ;
 
-   public Triangle(final Vector3d[] p0, final Vector3d[] p1, final Vector3d[] p2, final ColorInformation colorInfo) {
+   public Triangle(final Vector3f[] p0, final Vector3f[] p1, final Vector3f[] p2, final ColorInformation colorInfo) {
       this.colorInfo = colorInfo;
 
-      this.faceNormal = new Vector3d();
-      final Vector3d e1 = new Vector3d();
-      final Vector3d e2 = new Vector3d();
+      this.faceNormal = new Vector3f();
+      final Vector3f e1 = new Vector3f();
+      final Vector3f e2 = new Vector3f();
 
       e1.sub(p1[0], p0[0]);
       e2.sub(p2[0], p0[0]);
@@ -31,13 +31,13 @@ public class Triangle extends SceneObject {
       this.faceNormal.normalize();
 
       if ((p0[1] != null) && (p1[1] != null) && (p2[1] != null)) {
-         this.p0 = new Vector3d[] { new Vector3d(p0[0]), new Vector3d(p0[1]) };
-         this.p1 = new Vector3d[] { new Vector3d(p1[0]), new Vector3d(p1[1]) };
-         this.p2 = new Vector3d[] { new Vector3d(p2[0]), new Vector3d(p2[1]) };
+         this.p0 = new Vector3f[] { new Vector3f(p0[0]), new Vector3f(p0[1]) };
+         this.p1 = new Vector3f[] { new Vector3f(p1[0]), new Vector3f(p1[1]) };
+         this.p2 = new Vector3f[] { new Vector3f(p2[0]), new Vector3f(p2[1]) };
       } else {
-         this.p0 = new Vector3d[] { new Vector3d(p0[0]), new Vector3d(this.faceNormal) };
-         this.p1 = new Vector3d[] { new Vector3d(p1[0]), new Vector3d(this.faceNormal) };
-         this.p2 = new Vector3d[] { new Vector3d(p2[0]), new Vector3d(this.faceNormal) };
+         this.p0 = new Vector3f[] { new Vector3f(p0[0]), new Vector3f(this.faceNormal) };
+         this.p1 = new Vector3f[] { new Vector3f(p1[0]), new Vector3f(this.faceNormal) };
+         this.p2 = new Vector3f[] { new Vector3f(p2[0]), new Vector3f(this.faceNormal) };
       }
 
       this.minX = Math.min(p0[0].x, Math.min(p1[0].x, p2[0].x));
@@ -53,9 +53,13 @@ public class Triangle extends SceneObject {
 
    @Override
    public IntersectionInformation getIntersection(final Ray ray) {
-      // return this.getBarycentricIntersection(ray);
+      final float[] value = this.getBarycentricIntersection(ray.origin, ray.direction);
 
-      return this.intersectsTriangle(ray);
+      if (value == null) {
+         return null;
+      } else {
+         return new IntersectionInformation(ray, this.boundingVolume, new Vector3f(value[0], value[1], value[2]), new Vector3f(value[3], value[4], value[5]), value[6]);
+      }
    }
 
    @Override
@@ -63,15 +67,37 @@ public class Triangle extends SceneObject {
       return this.colorInfo.emission;
    }
 
-   public IntersectionInformation intersectsTriangle(final Ray ray) {
-      final Vector3d e1 = new Vector3d();
-      final Vector3d e2 = new Vector3d();
-      e1.sub(this.p1[0], this.p0[0]);
-      e2.sub(this.p2[0], this.p0[0]);
+   /**
+    * Checks the given ray origin and ray direction against the triangle created from the vertex array and the
+    * accompanying indices.
+    * 
+    * @param rO
+    *           The ray origin
+    * @param rD
+    *           The ray direction
+    * @param vertices
+    *           The complete set of vertices
+    * @param normals
+    *           The complete set of normals
+    * @param indices
+    *           The indices that make up this triangle
+    * @return An array of floats denoting the intersection, normal, and distance from ray origin in the form of: { x, y,
+    *         z, nx, ny, nz, w } or null if no intersection exists
+    */
+   public static float[] intersectsTriangle(final Vector3f rO, final Vector3f rD, final float[][] vertices, final float[][] normals, final int[] indices) {
+      // final float[] normal = RTStatics.computeNormal(vertices, indices);
+      final Vector3f[] p0 = new Vector3f[] { new Vector3f(vertices[indices[0]]), new Vector3f(normals[indices[0]]) };
+      final Vector3f[] p1 = new Vector3f[] { new Vector3f(vertices[indices[1]]), new Vector3f(normals[indices[1]]) };
+      final Vector3f[] p2 = new Vector3f[] { new Vector3f(vertices[indices[2]]), new Vector3f(normals[indices[2]]) };
 
-      final Vector3d p = new Vector3d();
-      p.cross(ray.direction, e2);
-      final double divisor = p.dot(e1);
+      final Vector3f e1 = new Vector3f();
+      final Vector3f e2 = new Vector3f();
+      e1.sub(p1[0], p0[0]);
+      e2.sub(p2[0], p0[0]);
+
+      final Vector3f p = new Vector3f();
+      p.cross(rD, e2);
+      final float divisor = p.dot(e1);
       /*
        * Ray nearly parallel to triangle plane...
        */
@@ -79,37 +105,33 @@ public class Triangle extends SceneObject {
          return null;
       }
 
-      final Vector3d translatedOrigin = new Vector3d(ray.origin);
-      translatedOrigin.sub(this.p0[0]);
-      final Vector3d q = new Vector3d();
+      final Vector3f translatedOrigin = new Vector3f(rO);
+      translatedOrigin.sub(p0[0]);
+      final Vector3f q = new Vector3f();
       q.cross(translatedOrigin, e1);
       /*
        * Barycentric coords also result from this formulation, which could be useful for interpolating attributes
        * defined at the vertex locations:
        */
-      final double u = p.dot(translatedOrigin) / divisor;
+      final float u = p.dot(translatedOrigin) / divisor;
       if ((u < 0) || (u > 1)) {
          return null;
       }
 
-      final double v = q.dot(ray.direction) / divisor;
+      final float v = q.dot(rD) / divisor;
       if ((v < 0) || (v + u > 1)) {
          return null;
       }
 
       // return q.dot(e2) / divisor;
 
-      final double w = 1.0 - u - v;
+      final float w = 1.0f - u - v;
 
-      final Vector3d intersection = new Vector3d(w * this.p0[0].x + u * this.p1[0].x + v * this.p2[0].x, w
-            * this.p0[0].y + u * this.p1[0].y + v * this.p2[0].y, w * this.p0[0].z + u * this.p1[0].z + v
-            * this.p2[0].z);
-      final Vector3d normal = new Vector3d(w * this.p0[1].x + u * this.p1[1].x + v * this.p2[1].x, w * this.p0[1].y + u
-            * this.p1[1].y + v * this.p2[1].y, w * this.p0[1].z + u * this.p1[1].z + v * this.p2[1].z);
-      normal.normalize();
+      final float[] returnValue = new float[] { w * p0[0].x + u * p1[0].x + v * p2[0].x, w * p0[0].y + u * p1[0].y + v * p2[0].y, w * p0[0].z + u * p1[0].z + v * p2[0].z,
+            w * p0[1].x + u * p1[1].x + v * p2[1].x, w * p0[1].y + u * p1[1].y + v * p2[1].y, w * p0[1].z + u * p1[1].z + v * p2[1].z, -1 };
+      returnValue[6] = RTStatics.getDistance(new float[] { rO.getX(), rO.getY(), rO.getZ() }, returnValue);
 
-      return new IntersectionInformation(ray, this.boundingVolume, intersection, normal,
-            RTStatics.getDistance(ray.origin, intersection));
+      return returnValue;
    }
 
    /**
@@ -118,23 +140,25 @@ public class Triangle extends SceneObject {
     * http://www.graphics.cornell.edu/pubs/1997/MT97.html
     * http://www.gamedev.net/community/forums/topic.asp?topic_id=263600
     * 
-    * @param ray   The Ray to use for the intersection test
-    * @return      An IntersectionInformation object containing the intersection or null if no intersection exists
+    * @param ray
+    *           The Ray to use for the intersection test
+    * @return An array of floats denoting the intersection, normal, and distance from ray origin in the form of: { x, y,
+    *         z, nx, ny, nz, w } or null if no intersection exists
     */
-   public final IntersectionInformation getBarycentricIntersection(final Ray ray) {
-      final Vector3d edge1 = new Vector3d();
-      final Vector3d edge2 = new Vector3d();
-      final Vector3d qvec = new Vector3d();
-      final Vector3d pvec = new Vector3d();
-      final Vector3d tvec = new Vector3d();
-      double det, inv_det, t, u, v;
+   public final float[] getBarycentricIntersection(final Vector3f rO, final Vector3f rD) {
+      final Vector3f edge1 = new Vector3f();
+      final Vector3f edge2 = new Vector3f();
+      final Vector3f qvec = new Vector3f();
+      final Vector3f pvec = new Vector3f();
+      final Vector3f tvec = new Vector3f();
+      float det, inv_det, t, u, v;
 
       // find edge vectors that share p0
       edge1.sub(this.p1[0], this.p0[0]);
       edge2.sub(this.p2[0], this.p0[0]);
 
       // begin calculating determinant - also used to calculate U parameter
-      pvec.cross(ray.direction, edge2);
+      pvec.cross(rD, edge2);
 
       // if determinant is near zero, ray lies in plane of triangle
       det = edge1.dot(pvec);
@@ -145,7 +169,7 @@ public class Triangle extends SceneObject {
          }
 
          // calculate distance from p0 to ray origin
-         tvec.sub(ray.origin, this.p0[0]);
+         tvec.sub(rO, this.p0[0]);
 
          // calculate U parameter and test bounds
          u = tvec.dot(pvec);
@@ -158,7 +182,7 @@ public class Triangle extends SceneObject {
          qvec.cross(tvec, edge1);
 
          // calculate V parameter and test bounds
-         v = ray.direction.dot(qvec);
+         v = rD.dot(qvec);
 
          if ((v < 0.0) || (u + v > det)) {
             return null;
@@ -166,7 +190,7 @@ public class Triangle extends SceneObject {
 
          // calculate t, scale parameters, ray intersects triangle
          t = edge2.dot(qvec);
-         inv_det = 1.0 / det;
+         inv_det = 1.0f / det;
          t *= inv_det;
          u *= inv_det;
          v *= inv_det;
@@ -175,10 +199,10 @@ public class Triangle extends SceneObject {
             return null;
          }
 
-         inv_det = 1.0 / det;
+         inv_det = 1.0f / det;
 
          // calculate distance from p0 to ray origin
-         tvec.sub(ray.origin, this.p0[0]);
+         tvec.sub(rO, this.p0[0]);
 
          // calculate U parameter and test bounds
          u = tvec.dot(pvec) * inv_det;
@@ -191,7 +215,7 @@ public class Triangle extends SceneObject {
          qvec.cross(tvec, edge1);
 
          // calculate V parameter and test bounds
-         v = ray.direction.dot(qvec) * inv_det;
+         v = rD.dot(qvec) * inv_det;
 
          if ((v < 0.0) || (u + v > 1.0)) {
             return null;
@@ -202,19 +226,14 @@ public class Triangle extends SceneObject {
       }
 
       // compute w value (as u + v + w must == 1.0)
-      final double w = 1.0 - (u + v);
+      final float w = 1.0f - (u + v);
 
       // compute intersection
-      final Vector3d intersection = new Vector3d(u * this.p0[0].x + v * this.p1[0].x + w * this.p2[0].x, u
-            * this.p0[0].y + v * this.p1[0].y + w * this.p2[0].y, u * this.p0[0].z + v * this.p1[0].z + w
-            * this.p2[0].z);
-      //      final Vector3d normal = new Vector3d(u * this.p0[1].x + v * this.p1[1].x + w * this.p2[1].x, u * this.p0[1].y + v
-      //            * this.p1[1].y + w * this.p2[1].y, u * this.p0[1].z + v * this.p1[1].z + w * this.p2[1].z);
-      //      normal.normalize();
+      final float[] returnValue = new float[] { w * this.p0[0].x + u * this.p1[0].x + v * this.p2[0].x, w * this.p0[0].y + u * this.p1[0].y + v * this.p2[0].y,
+            w * this.p0[0].z + u * this.p1[0].z + v * this.p2[0].z, w * this.p0[1].x + u * this.p1[1].x + v * this.p2[1].x, w * this.p0[1].y + u * this.p1[1].y + v * this.p2[1].y,
+            w * this.p0[1].z + u * this.p1[1].z + v * this.p2[1].z, -1 };
+      returnValue[6] = RTStatics.getDistance(new float[] { rO.getX(), rO.getY(), rO.getZ() }, returnValue);
 
-      final Vector3d normal = new Vector3d(this.faceNormal);
-
-      return new IntersectionInformation(ray, this.boundingVolume, intersection, normal,
-            RTStatics.getDistance(ray.origin, intersection));
+      return returnValue;
    }
 }
