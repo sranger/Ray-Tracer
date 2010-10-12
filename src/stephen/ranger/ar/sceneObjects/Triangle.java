@@ -1,7 +1,5 @@
 package stephen.ranger.ar.sceneObjects;
 
-import java.awt.Color;
-
 import javax.vecmath.Vector3f;
 
 import stephen.ranger.ar.ColorInformation;
@@ -20,51 +18,45 @@ public class Triangle extends SceneObject {
    public Triangle(final Vector3f[] p0, final Vector3f[] p1, final Vector3f[] p2, final ColorInformation colorInfo) {
       this.colorInfo = colorInfo;
 
-      this.faceNormal = new Vector3f();
+      faceNormal = new Vector3f();
       final Vector3f e1 = new Vector3f();
       final Vector3f e2 = new Vector3f();
 
       e1.sub(p1[0], p0[0]);
       e2.sub(p2[0], p0[0]);
 
-      this.faceNormal.cross(e1, e2);
-      this.faceNormal.normalize();
+      faceNormal.cross(e1, e2);
+      faceNormal.normalize();
 
-      if ((p0[1] != null) && (p1[1] != null) && (p2[1] != null)) {
+      if (p0[1] != null && p1[1] != null && p2[1] != null) {
          this.p0 = new Vector3f[] { new Vector3f(p0[0]), new Vector3f(p0[1]) };
          this.p1 = new Vector3f[] { new Vector3f(p1[0]), new Vector3f(p1[1]) };
          this.p2 = new Vector3f[] { new Vector3f(p2[0]), new Vector3f(p2[1]) };
       } else {
-         this.p0 = new Vector3f[] { new Vector3f(p0[0]), new Vector3f(this.faceNormal) };
-         this.p1 = new Vector3f[] { new Vector3f(p1[0]), new Vector3f(this.faceNormal) };
-         this.p2 = new Vector3f[] { new Vector3f(p2[0]), new Vector3f(this.faceNormal) };
+         this.p0 = new Vector3f[] { new Vector3f(p0[0]), new Vector3f(faceNormal) };
+         this.p1 = new Vector3f[] { new Vector3f(p1[0]), new Vector3f(faceNormal) };
+         this.p2 = new Vector3f[] { new Vector3f(p2[0]), new Vector3f(faceNormal) };
       }
 
-      this.minX = Math.min(p0[0].x, Math.min(p1[0].x, p2[0].x));
-      this.maxX = Math.max(p0[0].x, Math.max(p1[0].x, p2[0].x));
-      this.minY = Math.min(p0[0].y, Math.min(p1[0].y, p2[0].y));
-      this.maxY = Math.max(p0[0].y, Math.max(p1[0].y, p2[0].y));
-      this.minZ = Math.min(p0[0].z, Math.min(p1[0].z, p2[0].z));
-      this.maxZ = Math.max(p0[0].z, Math.max(p1[0].z, p2[0].z));
+      minX = Math.min(p0[0].x, Math.min(p1[0].x, p2[0].x));
+      maxX = Math.max(p0[0].x, Math.max(p1[0].x, p2[0].x));
+      minY = Math.min(p0[0].y, Math.min(p1[0].y, p2[0].y));
+      maxY = Math.max(p0[0].y, Math.max(p1[0].y, p2[0].y));
+      minZ = Math.min(p0[0].z, Math.min(p1[0].z, p2[0].z));
+      maxZ = Math.max(p0[0].z, Math.max(p1[0].z, p2[0].z));
 
-      this.setBoundingVolume(new AxisAlignedBoundingBox(this, this.minX, this.minY, this.minZ, this.maxX, this.maxY,
-            this.maxZ));
+      setBoundingVolume(new AxisAlignedBoundingBox(this, minX, minY, minZ, maxX, maxY, maxZ));
    }
 
    @Override
    public IntersectionInformation getIntersection(final Ray ray) {
-      final float[] value = this.getBarycentricIntersection(ray.origin, ray.direction);
+      final float[] value = getBarycentricIntersection(ray.origin, ray.direction);
 
       if (value == null) {
          return null;
       } else {
-         return new IntersectionInformation(ray, this.boundingVolume, new Vector3f(value[0], value[1], value[2]), new Vector3f(value[3], value[4], value[5]), value[6]);
+         return new IntersectionInformation(ray, boundingVolume, new Vector3f(value[0], value[1], value[2]), new Vector3f(value[3], value[4], value[5]), value[6]);
       }
-   }
-
-   @Override
-   public Color getColor(final IntersectionInformation info) {
-      return this.colorInfo.emission;
    }
 
    /**
@@ -101,7 +93,7 @@ public class Triangle extends SceneObject {
       /*
        * Ray nearly parallel to triangle plane...
        */
-      if ((divisor < RTStatics.EPSILON) && (divisor > -RTStatics.EPSILON)) {
+      if (divisor < RTStatics.EPSILON && divisor > -RTStatics.EPSILON) {
          return null;
       }
 
@@ -114,12 +106,12 @@ public class Triangle extends SceneObject {
        * defined at the vertex locations:
        */
       final float u = p.dot(translatedOrigin) / divisor;
-      if ((u < 0) || (u > 1)) {
+      if (u < 0 || u > 1) {
          return null;
       }
 
       final float v = q.dot(rD) / divisor;
-      if ((v < 0) || (v + u > 1)) {
+      if (v < 0 || v + u > 1) {
          return null;
       }
 
@@ -154,8 +146,8 @@ public class Triangle extends SceneObject {
       float det, inv_det, t, u, v;
 
       // find edge vectors that share p0
-      edge1.sub(this.p1[0], this.p0[0]);
-      edge2.sub(this.p2[0], this.p0[0]);
+      edge1.sub(p1[0], p0[0]);
+      edge2.sub(p2[0], p0[0]);
 
       // begin calculating determinant - also used to calculate U parameter
       pvec.cross(rD, edge2);
@@ -169,12 +161,12 @@ public class Triangle extends SceneObject {
          }
 
          // calculate distance from p0 to ray origin
-         tvec.sub(rO, this.p0[0]);
+         tvec.sub(rO, p0[0]);
 
          // calculate U parameter and test bounds
          u = tvec.dot(pvec);
 
-         if ((u < 0.0) || (u > det)) {
+         if (u < 0.0 || u > det) {
             return null;
          }
 
@@ -184,7 +176,7 @@ public class Triangle extends SceneObject {
          // calculate V parameter and test bounds
          v = rD.dot(qvec);
 
-         if ((v < 0.0) || (u + v > det)) {
+         if (v < 0.0 || u + v > det) {
             return null;
          }
 
@@ -195,19 +187,19 @@ public class Triangle extends SceneObject {
          u *= inv_det;
          v *= inv_det;
       } else {
-         if ((det > -RTStatics.EPSILON) && (det < RTStatics.EPSILON)) {
+         if (det > -RTStatics.EPSILON && det < RTStatics.EPSILON) {
             return null;
          }
 
          inv_det = 1.0f / det;
 
          // calculate distance from p0 to ray origin
-         tvec.sub(rO, this.p0[0]);
+         tvec.sub(rO, p0[0]);
 
          // calculate U parameter and test bounds
          u = tvec.dot(pvec) * inv_det;
 
-         if ((u < 0.0) || (u > 1.0)) {
+         if (u < 0.0 || u > 1.0) {
             return null;
          }
 
@@ -217,7 +209,7 @@ public class Triangle extends SceneObject {
          // calculate V parameter and test bounds
          v = rD.dot(qvec) * inv_det;
 
-         if ((v < 0.0) || (u + v > 1.0)) {
+         if (v < 0.0 || u + v > 1.0) {
             return null;
          }
 
@@ -229,9 +221,8 @@ public class Triangle extends SceneObject {
       final float w = 1.0f - (u + v);
 
       // compute intersection
-      final float[] returnValue = new float[] { w * this.p0[0].x + u * this.p1[0].x + v * this.p2[0].x, w * this.p0[0].y + u * this.p1[0].y + v * this.p2[0].y,
-            w * this.p0[0].z + u * this.p1[0].z + v * this.p2[0].z, w * this.p0[1].x + u * this.p1[1].x + v * this.p2[1].x, w * this.p0[1].y + u * this.p1[1].y + v * this.p2[1].y,
-            w * this.p0[1].z + u * this.p1[1].z + v * this.p2[1].z, -1 };
+      final float[] returnValue = new float[] { w * p0[0].x + u * p1[0].x + v * p2[0].x, w * p0[0].y + u * p1[0].y + v * p2[0].y, w * p0[0].z + u * p1[0].z + v * p2[0].z,
+            w * p0[1].x + u * p1[1].x + v * p2[1].x, w * p0[1].y + u * p1[1].y + v * p2[1].y, w * p0[1].z + u * p1[1].z + v * p2[1].z, -1 };
       returnValue[6] = RTStatics.getDistance(new float[] { rO.getX(), rO.getY(), rO.getZ() }, returnValue);
 
       return returnValue;

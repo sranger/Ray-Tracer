@@ -23,12 +23,11 @@ public class ColorInformation {
       this(Color.black);
    }
 
-   public ColorInformation(final Color emission) {
-      this(emission, false);
+   public ColorInformation(final Color diffuse) {
+      this(diffuse, false);
    }
 
-   public ColorInformation(final Color emission, final boolean isMirror) {
-      // this(emission, new Color(0.8f, 0.8f, 0.8f, 1.0f), new Color(0.8f, 0.8f, 0.8f, 1.0f), new Color(0.8f, 0.8f, 0.8f, 1.0f), 10, isMirror);
-      this(emission, emission, emission, emission, 50, isMirror);
+   public ColorInformation(final Color diffuse, final boolean isMirror) {
+      this(Color.black, diffuse, diffuse, diffuse, 0, isMirror);
    }
 }

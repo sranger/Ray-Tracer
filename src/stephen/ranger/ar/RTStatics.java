@@ -39,11 +39,11 @@ public class RTStatics {
    public static float leastPositive(final float i, final float j) {
       float retVal;
 
-      if ((i < 0) && (j < 0)) {
+      if (i < 0 && j < 0) {
          retVal = -1;
-      } else if ((i < 0) && (j > 0)) {
+      } else if (i < 0 && j > 0) {
          retVal = j;
-      } else if ((i > 0) && (j < 0)) {
+      } else if (i > 0 && j < 0) {
          retVal = i;
       } else {
          if (i < j) {
@@ -79,7 +79,7 @@ public class RTStatics {
          tymax = (minMax[0][1] - r.origin.y) * divy;
       }
 
-      if ((txmin > tymax) || (tymin > txmax)) {
+      if (txmin > tymax || tymin > txmax) {
          return false;
       }
 
@@ -99,7 +99,7 @@ public class RTStatics {
          tzmax = (minMax[0][2] - r.origin.z) * divz;
       }
 
-      if ((txmin > tzmax) || (tzmin > txmax)) {
+      if (txmin > tzmax || tzmin > txmax) {
          return false;
       }
 
@@ -111,7 +111,7 @@ public class RTStatics {
          txmax = tzmax;
       }
 
-      return (txmin < RTStatics.farPlane) && (txmax > RTStatics.nearPlane);
+      return txmin < RTStatics.farPlane && txmax > RTStatics.nearPlane;
    }
 
    /**
@@ -214,10 +214,10 @@ public class RTStatics {
     *           A Vector3f containing the yaw, pitch, and roll orientation in degrees
     * @return A Quat4f initialized using the given orientation
     */
-   public static Quat4f initializeQuat4f(final Vector3f orientation) {
-      final Quat4f qx = initializeQuat4f(new Vector3f(0, 1, 0), -orientation.x); // yaw
-      final Quat4f qy = initializeQuat4f(new Vector3f(1, 0, 0), orientation.y); // pitch
-      final Quat4f qz = initializeQuat4f(new Vector3f(0, 0, 1), -orientation.z); // roll
+   public static Quat4f initializeQuat4f(final float[] orientation) {
+      final Quat4f qx = initializeQuat4f(new Vector3f(0, 1, 0), -orientation[0]); // yaw
+      final Quat4f qy = initializeQuat4f(new Vector3f(1, 0, 0), orientation[1]); // pitch
+      final Quat4f qz = initializeQuat4f(new Vector3f(0, 0, 1), -orientation[2]); // roll
 
       qx.mul(qy);
       qx.mul(qz);

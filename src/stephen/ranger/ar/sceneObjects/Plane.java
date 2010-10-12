@@ -30,30 +30,29 @@ public class Plane extends SceneObject {
       super(colorInfo);
 
       if (corners.length < 3) {
-         throw new InvalidParameterException(
-         "The Vector3f array of corner values must contain three or more vertices that denote the bounds of the given plane.");
+         throw new InvalidParameterException("The Vector3f array of corner values must contain three or more vertices that denote the bounds of the given plane.");
       }
 
       // A = y0 (z1 - z2) + y1 (z2 - z0) + y2 (z0 - z1)
-      this.A = corners[0].y * (corners[1].z - corners[2].z) + corners[1].y * (corners[2].z - corners[0].z) + corners[2].y * (corners[0].z - corners[1].z);
+      A = corners[0].y * (corners[1].z - corners[2].z) + corners[1].y * (corners[2].z - corners[0].z) + corners[2].y * (corners[0].z - corners[1].z);
 
       // B = z0 (x1 - x2) + z1 (x2 - x0) + z2 (x0 - x1)
-      this.B = corners[0].z * (corners[1].x - corners[2].x) + corners[1].z * (corners[2].x - corners[0].x) + corners[2].z * (corners[0].x - corners[1].x);
+      B = corners[0].z * (corners[1].x - corners[2].x) + corners[1].z * (corners[2].x - corners[0].x) + corners[2].z * (corners[0].x - corners[1].x);
 
       // C = x0 (y1 - y2) + x1 (y2 - y0) + x2 (y0 - y1)
-      this.C = corners[0].x * (corners[1].y - corners[2].y) + corners[1].x * (corners[2].y - corners[0].y) + corners[2].x * (corners[0].y - corners[1].y);
+      C = corners[0].x * (corners[1].y - corners[2].y) + corners[1].x * (corners[2].y - corners[0].y) + corners[2].x * (corners[0].y - corners[1].y);
 
       // D = - (x0 (y1 z2 - y2 z1) +
-      this.D = -(corners[0].x * (corners[1].y * corners[2].z - corners[2].y * corners[1].z) +
-            // x1 (y2 z0 - y0 z2) +
+      D = -(corners[0].x * (corners[1].y * corners[2].z - corners[2].y * corners[1].z) +
+      // x1 (y2 z0 - y0 z2) +
             corners[1].x * (corners[2].y * corners[0].z - corners[0].y * corners[2].z) +
-            // x2 (y0 z1 - y1 z0))
-            corners[2].x * (corners[0].y * corners[1].z - corners[1].y * corners[0].z));
+      // x2 (y0 z1 - y1 z0))
+      corners[2].x * (corners[0].y * corners[1].z - corners[1].y * corners[0].z));
 
-      this.normal = new Vector3f(this.A, this.B, this.C);
-      this.normal.normalize();
+      normal = new Vector3f(A, B, C);
+      normal.normalize();
 
-      if ((this.A == 0) && (this.B == 0) && (this.C == 0)) {
+      if (A == 0 && B == 0 && C == 0) {
          throw new InvalidParameterException("The first three vertices given for this object are colinear.");
       }
 
@@ -62,25 +61,25 @@ public class Plane extends SceneObject {
          corners[3] = new Vector3f(corners[2]);
       }
 
-      this.minX = Math.min(corners[0].x, Math.min(corners[1].x, Math.min(corners[2].x, corners[3].x))) - RTStatics.EPSILON;
-      this.maxX = Math.max(corners[0].x, Math.max(corners[1].x, Math.max(corners[2].x, corners[3].x))) + RTStatics.EPSILON;
-      this.minY = Math.min(corners[0].y, Math.min(corners[1].y, Math.min(corners[2].y, corners[3].y))) - RTStatics.EPSILON;
-      this.maxY = Math.max(corners[0].y, Math.max(corners[1].y, Math.max(corners[2].y, corners[3].y))) + RTStatics.EPSILON;
-      this.minZ = Math.min(corners[0].z, Math.min(corners[1].z, Math.min(corners[2].z, corners[3].z))) - RTStatics.EPSILON;
-      this.maxZ = Math.max(corners[0].z, Math.max(corners[1].z, Math.max(corners[2].z, corners[3].z))) + RTStatics.EPSILON;
+      minX = Math.min(corners[0].x, Math.min(corners[1].x, Math.min(corners[2].x, corners[3].x))) - RTStatics.EPSILON;
+      maxX = Math.max(corners[0].x, Math.max(corners[1].x, Math.max(corners[2].x, corners[3].x))) + RTStatics.EPSILON;
+      minY = Math.min(corners[0].y, Math.min(corners[1].y, Math.min(corners[2].y, corners[3].y))) - RTStatics.EPSILON;
+      maxY = Math.max(corners[0].y, Math.max(corners[1].y, Math.max(corners[2].y, corners[3].y))) + RTStatics.EPSILON;
+      minZ = Math.min(corners[0].z, Math.min(corners[1].z, Math.min(corners[2].z, corners[3].z))) - RTStatics.EPSILON;
+      maxZ = Math.max(corners[0].z, Math.max(corners[1].z, Math.max(corners[2].z, corners[3].z))) + RTStatics.EPSILON;
 
-      if ((this.maxX - this.minX < this.maxY - this.minY) && (this.maxX - this.minX < this.maxZ - this.minZ)) {
-         this.width = RTStatics.getDistance(new float[] { this.minX, this.minY, this.minZ }, new float[] { this.minX, this.minY, this.maxZ });
-         this.height = RTStatics.getDistance(new float[] { this.minX, this.minY, this.minZ }, new float[] { this.minX, this.maxY, this.minZ });
-      } else if ((this.maxY - this.minY < this.maxX - this.minX) && (this.maxY - this.minY < this.maxZ - this.minZ)) {
-         this.width = RTStatics.getDistance(new float[] { this.minX, this.minY, this.minZ }, new float[] { this.maxX, this.minY, this.minZ });
-         this.height = RTStatics.getDistance(new float[] { this.minX, this.minY, this.minZ }, new float[] { this.minX, this.minY, this.maxZ });
+      if (maxX - minX < maxY - minY && maxX - minX < maxZ - minZ) {
+         width = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { minX, minY, maxZ });
+         height = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { minX, maxY, minZ });
+      } else if (maxY - minY < maxX - minX && maxY - minY < maxZ - minZ) {
+         width = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { maxX, minY, minZ });
+         height = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { minX, minY, maxZ });
       } else {
-         this.width = RTStatics.getDistance(new float[] { this.minX, this.minY, this.minZ }, new float[] { this.maxX, this.minY, this.minZ });
-         this.height = RTStatics.getDistance(new float[] { this.minX, this.minY, this.minZ }, new float[] { this.minX, this.maxY, this.minZ });
+         width = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { maxX, minY, minZ });
+         height = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { minX, maxY, minZ });
       }
 
-      this.setBoundingVolume(new AxisAlignedBoundingBox(this, this.minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ));
+      setBoundingVolume(new AxisAlignedBoundingBox(this, minX, minY, minZ, maxX, maxY, maxZ));
    }
 
    public Plane() {
@@ -93,9 +92,9 @@ public class Plane extends SceneObject {
     */
    @Override
    public IntersectionInformation getIntersection(final Ray ray) {
-      final float vD = this.normal.dot(ray.direction);
+      final float vD = normal.dot(ray.direction);
 
-      if ((vD <= -RTStatics.EPSILON) || (vD >= RTStatics.EPSILON)) {
+      if (vD <= -RTStatics.EPSILON || vD >= RTStatics.EPSILON) {
          // V0 = -(Pn . R0 + D) and compute t = V0 / Vd. If t < 0 then the
          // ray intersects plane behind origin, i.e. no intersection of
          // interest
@@ -103,7 +102,7 @@ public class Plane extends SceneObject {
          // final float t = v0 / vD;
 
          // t = -(AX0 + BY0 + CZ0 + D) / (AXd + BYd + CZd)
-         final float t = -(this.A * ray.origin.x + this.B * ray.origin.y + this.C * ray.origin.z + this.D) / (this.A * ray.direction.x + this.B * ray.direction.y + this.C * ray.direction.z);
+         final float t = -(A * ray.origin.x + B * ray.origin.y + C * ray.origin.z + D) / (A * ray.direction.x + B * ray.direction.y + C * ray.direction.z);
 
          if (t > -RTStatics.EPSILON) {
             final Vector3f rD = new Vector3f(ray.direction);
@@ -117,11 +116,11 @@ public class Plane extends SceneObject {
             // Pi = [Xi Yi Zi] = [X0 + Xd * t Y0 + Yd * t Z0 + Zd * t]
             final Vector3f pI = new Vector3f(ray.origin.x + rD.x * t, ray.origin.y + rD.y * t, ray.origin.z + rD.z * t);
 
-            if ((pI.x >= this.minX) && (pI.x <= this.maxX) && (pI.y >= this.minY) && (pI.y <= this.maxY) && (pI.z >= this.minZ) && (pI.z <= this.maxZ)) {
+            if (pI.x >= minX && pI.x <= maxX && pI.y >= minY && pI.y <= maxY && pI.z >= minZ && pI.z <= maxZ) {
                final Vector3f temp = new Vector3f();
                temp.sub(pI, ray.origin);
 
-               return new IntersectionInformation(ray, this.boundingVolume, pI, new Vector3f(this.normal), temp.length());
+               return new IntersectionInformation(ray, boundingVolume, pI, new Vector3f(normal), temp.length());
             }
          } else {
             // intersection behind ray origin; ignore
@@ -139,32 +138,32 @@ public class Plane extends SceneObject {
       final float[] intersection = new float[3];
       info.intersection.get(intersection);
 
-      if ((this.maxX - this.minX < this.maxY - this.minY) && (this.maxX - this.minX < this.maxZ - this.minZ)) {
+      if (maxX - minX < maxY - minY && maxX - minX < maxZ - minZ) {
          //z = width, y = height
-         wD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, info.intersection.y, this.minZ });
-         hD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, this.minY, info.intersection.z });
-      } else if ((this.maxY - this.minY < this.maxX - this.minX) && (this.maxY - this.minY < this.maxZ - this.minZ)) {
+         wD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, info.intersection.y, minZ });
+         hD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, minY, info.intersection.z });
+      } else if (maxY - minY < maxX - minX && maxY - minY < maxZ - minZ) {
          // x = width, z = height
-         wD = RTStatics.getDistance(intersection, new float[] { this.minX, info.intersection.y, info.intersection.z });
-         hD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, info.intersection.y, this.minZ });
+         wD = RTStatics.getDistance(intersection, new float[] { minX, info.intersection.y, info.intersection.z });
+         hD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, info.intersection.y, minZ });
       } else {
          // x = width, y = height
-         wD = RTStatics.getDistance(intersection, new float[] { this.minX, info.intersection.y, info.intersection.z });
-         hD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, this.minY, info.intersection.z });
+         wD = RTStatics.getDistance(intersection, new float[] { minX, info.intersection.y, info.intersection.z });
+         hD = RTStatics.getDistance(intersection, new float[] { info.intersection.x, minY, info.intersection.z });
       }
 
-      final float widthStep = this.width / this.horizontalBoxes;
-      final float heightStep = this.height / this.verticalBoxes;
+      final float widthStep = width / horizontalBoxes;
+      final float heightStep = height / verticalBoxes;
 
       final int x = (int) Math.floor(wD / widthStep);
       final int y = (int) Math.floor(hD / heightStep);
 
-      final Color emissionColor = this.colorInfo.emission;
+      final Color diffuseColor = colorInfo.diffuse;
 
-      if (((x % 2 == 0) && (y % 2 == 0)) || ((x % 2 != 0) && (y % 2 != 0))) {
-         return emissionColor;
+      if (x % 2 == 0 && y % 2 == 0 || x % 2 != 0 && y % 2 != 0) {
+         return diffuseColor;
       } else {
-         return new Color(255 - emissionColor.getRed(), 255 - emissionColor.getGreen(), 255 - emissionColor.getBlue());
+         return new Color(255 - diffuseColor.getRed(), 255 - diffuseColor.getGreen(), 255 - diffuseColor.getBlue());
       }
    }
 }

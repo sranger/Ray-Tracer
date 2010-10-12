@@ -1,35 +1,28 @@
 package stephen.ranger.ar.sceneObjects;
 
-import java.awt.Color;
-
 import javax.vecmath.Vector3f;
 
 import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
-import stephen.ranger.ar.RayTracer;
 import stephen.ranger.ar.bounds.BoundingSphere;
-import stephen.ranger.ar.bounds.BoundingVolume;
 
 public class Sphere extends SceneObject {
    public final float radius;
    public final Vector3f origin;
 
-   private final RayTracer rt;
-
-   public Sphere(final float radius, final Vector3f origin, final ColorInformation colorInfo, final RayTracer rt) {
+   public Sphere(final float radius, final Vector3f origin, final ColorInformation colorInfo) {
       super(colorInfo);
 
       this.radius = radius;
       this.origin = origin;
-      this.rt = rt;
 
-      this.setBoundingVolume(new BoundingSphere(this, origin, radius));
+      setBoundingVolume(new BoundingSphere(this, origin, radius));
    }
 
-   public Sphere(final RayTracer rt) {
-      this(1.0f, new Vector3f(), new ColorInformation(), rt);
+   public Sphere() {
+      this(1.0f, new Vector3f(), new ColorInformation());
    }
 
    @Override
@@ -41,7 +34,7 @@ public class Sphere extends SceneObject {
 
       final float a = (float) (Math.pow(direction.x, 2) + Math.pow(direction.y, 2) + Math.pow(direction.z, 2));
       final float b = 2 * (direction.x * (origin.x - center.x) + direction.y * (origin.y - center.y) + direction.z * (origin.z - center.z));
-      final float c = (float) (Math.pow((origin.x - center.x), 2) + Math.pow((origin.y - center.y), 2) + Math.pow((origin.z - center.z), 2) - Math.pow(this.radius, 2));
+      final float c = (float) (Math.pow((origin.x - center.x), 2) + Math.pow((origin.y - center.y), 2) + Math.pow((origin.z - center.z), 2) - Math.pow(radius, 2));
 
       final float b24c = (float) (Math.pow(b, 2) - 4 * c);
       final float wplus = (float) ((-b + Math.sqrt(b24c)) / (2 * a));
@@ -72,9 +65,9 @@ public class Sphere extends SceneObject {
             zd = origin.z - zn;
             final float nDist = (float) Math.sqrt(xd * xd + yd * yd + zd * zd);
 
-            if ((nDist < RTStatics.EPSILON) && (wminus > 0)) {
+            if (nDist < RTStatics.EPSILON && wminus > 0) {
                w = wminus;
-            } else if ((nDist < RTStatics.EPSILON) && (wminus < 0)) {
+            } else if (nDist < RTStatics.EPSILON && wminus < 0) {
                w = -1;
             }
          }
@@ -89,9 +82,9 @@ public class Sphere extends SceneObject {
             zd = origin.z - zm;
             final float mDist = (float) Math.sqrt(xd * xd + yd * yd + zd * zd);
 
-            if ((mDist < 0.01) && (wplus > 0)) {
+            if (mDist < 0.01 && wplus > 0) {
                w = wplus;
-            } else if ((mDist < 0.01) && (wplus < 0)) {
+            } else if (mDist < 0.01 && wplus < 0) {
                w = -1;
             }
          }
@@ -102,40 +95,9 @@ public class Sphere extends SceneObject {
          final Vector3f normal = new Vector3f(intersection.x - center.x, intersection.y - center.y, intersection.z - center.z);
          normal.normalize();
 
-         retVal = new IntersectionInformation(ray, this.boundingVolume, intersection, normal, w);
+         retVal = new IntersectionInformation(ray, boundingVolume, intersection, normal, w);
       }
 
       return retVal;
-   }
-
-   @Override
-   public Color getColor(final IntersectionInformation info) {
-      if (info.intersectionObject.getColorInformation(info).isMirror) {
-         final Vector3f reflectionDirection = RTStatics.getReflectionDirection(info, info.ray.origin);
-         reflectionDirection.scale(-1.0f);
-         final Ray ray = new Ray(info.intersection, reflectionDirection);
-         IntersectionInformation temp = null, closest = null;
-
-         for (final BoundingVolume object : this.rt.objects) {
-            if (!object.equals(this)) {
-               temp = object.getChildIntersection(ray);
-
-               if (temp != null) {
-                  closest = closest == null ? temp : (closest.w <= temp.w) && (closest.w > RTStatics.EPSILON) ? closest : temp;
-               }
-            }
-         }
-
-         final Color color = closest == null ? this.rt.light.ambient : this.rt.lightingModel.getPixelColor(closest);
-
-         final int r = Math.min(255, Math.max(0, color.getRed() + info.intersectionObject.getColorInformation(info).emission.getRed()));
-         final int g = Math.min(255, Math.max(0, color.getGreen() + info.intersectionObject.getColorInformation(info).emission.getGreen()));
-         final int b = Math.min(255, Math.max(0, color.getBlue() + info.intersectionObject.getColorInformation(info).emission.getBlue()));
-
-         return new Color(r, g, b);
-      } else {
-         // TODO: why does this come out black on the reflective sphere?
-         return super.getColor(info);
-      }
    }
 }

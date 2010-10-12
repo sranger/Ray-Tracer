@@ -4,7 +4,6 @@ import java.awt.Color;
 
 import javax.vecmath.Vector3f;
 
-import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
@@ -13,12 +12,12 @@ import stephen.ranger.ar.bounds.BoundingVolume;
 public class PhongLightingModel extends LightingModel {
    private static final Color NO_SHADOW_COMPONENT = Color.white;
 
-   private final Camera camera;
+   private final Vector3f cameraPosition;
    private final Light light;
    private final BoundingVolume[] objects;
 
-   public PhongLightingModel(final Camera camera, final Light light, final BoundingVolume[] objects) {
-      this.camera = camera;
+   public PhongLightingModel(final Vector3f cameraPosition, final Light light, final BoundingVolume[] objects) {
+      this.cameraPosition = cameraPosition;
       this.light = light;
       this.objects = objects;
    }
@@ -45,7 +44,7 @@ public class PhongLightingModel extends LightingModel {
       final Vector3f N = new Vector3f(info.normal);
 
       final Vector3f V = new Vector3f();
-      V.sub(info.intersection, camera.origin);
+      V.sub(info.intersection, cameraPosition);
       V.normalize();
 
       // r = -2N(L.N)+L
