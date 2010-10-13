@@ -58,7 +58,6 @@ public abstract class SceneObject {
     * @return  The color to display at the given intersection location
     */
    public Color getColor(final IntersectionInformation info) {
-      System.out.println("diffuse: " + info.intersectionObject.getColorInformation(info).diffuse);
       return info.intersectionObject.getColorInformation(info).diffuse;
    }
 }

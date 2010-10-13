@@ -12,36 +12,35 @@ public class AxisAlignedBoundingBox extends BoundingVolume {
    public final SceneObject child;
    public final float[][] minMax;
 
-   public AxisAlignedBoundingBox(final SceneObject child, final float minX, final float minY, final float minZ, final float maxX, final float maxY,
-         final float maxZ) {
+   public AxisAlignedBoundingBox(final SceneObject child, final float minX, final float minY, final float minZ, final float maxX, final float maxY, final float maxZ) {
       this.child = child;
-      this.minMax = new float[2][];
-      this.minMax[0] = new float[] { minX, minY, minZ };
-      this.minMax[1] = new float[] { maxX, maxY, maxZ };
+      minMax = new float[2][];
+      minMax[0] = new float[] { minX, minY, minZ };
+      minMax[1] = new float[] { maxX, maxY, maxZ };
    }
 
    @Override
    public IntersectionInformation getChildIntersection(final Ray ray) {
-      return this.intersects(ray) ? this.child.getIntersection(ray) : null;
+      return child.getIntersection(ray);
    }
 
    @Override
    public boolean intersects(final Ray r) {
-      return RTStatics.aabbIntersection(r, this.getMinMax());
+      return RTStatics.aabbIntersection(r, getMinMax());
    }
 
    @Override
    public float[][] getMinMax() {
-      return this.minMax;
+      return minMax;
    }
 
    @Override
    public Color getColor(final IntersectionInformation info) {
-      return this.child.getColor(info);
+      return child.getColor(info);
    }
 
    @Override
    public ColorInformation getColorInformation(final IntersectionInformation info) {
-      return this.child.colorInfo;
+      return child.colorInfo;
    }
 }

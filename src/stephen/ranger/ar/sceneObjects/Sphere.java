@@ -45,9 +45,7 @@ public class Sphere extends SceneObject {
       if (b24c < 0) {
          w = -1;
          // myW = false; // no real root
-      }
-
-      else {
+      } else {
          w = RTStatics.leastPositive(wplus, wminus);
          // myW = true;
       }
@@ -92,9 +90,9 @@ public class Sphere extends SceneObject {
 
       if (w > 0) {
          final Vector3f intersection = new Vector3f(origin.x + direction.x * w, origin.y + direction.y * w, origin.z + direction.z * w);
-         final Vector3f normal = new Vector3f(intersection.x - center.x, intersection.y - center.y, intersection.z - center.z);
+         final Vector3f normal = new Vector3f(intersection);
+         normal.sub(center);
          normal.normalize();
-
          retVal = new IntersectionInformation(ray, boundingVolume, intersection, normal, w);
       }
 

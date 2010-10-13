@@ -26,6 +26,8 @@ public class Plane extends SceneObject {
    public final int horizontalBoxes = 10;
    public final int verticalBoxes = 10;
 
+   private final Color negDiffuse;
+
    public Plane(Vector3f[] corners, final ColorInformation colorInfo) {
       super(colorInfo);
 
@@ -79,6 +81,9 @@ public class Plane extends SceneObject {
          height = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { minX, maxY, minZ });
       }
 
+      negDiffuse = new Color(255 - colorInfo.diffuse.getRed(), 255 - colorInfo.diffuse.getGreen(), 255 - colorInfo.diffuse.getBlue());
+
+      System.out.println("plane bounds: " + minX + ", " + maxX + "  " + minY + ", " + maxY + "  " + minZ + ", " + maxZ);
       setBoundingVolume(new AxisAlignedBoundingBox(this, minX, minY, minZ, maxX, maxY, maxZ));
    }
 
@@ -92,7 +97,13 @@ public class Plane extends SceneObject {
     */
    @Override
    public IntersectionInformation getIntersection(final Ray ray) {
-      final float vD = normal.dot(ray.direction);
+      final Vector3f planeNormal = new Vector3f(normal);
+      float vD = planeNormal.dot(ray.direction);
+
+      if (vD > RTStatics.EPSILON) {
+         planeNormal.scale(-1);
+         vD = planeNormal.dot(ray.direction);
+      }
 
       if (vD <= -RTStatics.EPSILON || vD >= RTStatics.EPSILON) {
          // V0 = -(Pn . R0 + D) and compute t = V0 / Vd. If t < 0 then the
@@ -119,8 +130,7 @@ public class Plane extends SceneObject {
             if (pI.x >= minX && pI.x <= maxX && pI.y >= minY && pI.y <= maxY && pI.z >= minZ && pI.z <= maxZ) {
                final Vector3f temp = new Vector3f();
                temp.sub(pI, ray.origin);
-
-               return new IntersectionInformation(ray, boundingVolume, pI, new Vector3f(normal), temp.length());
+               return new IntersectionInformation(ray, boundingVolume, pI, new Vector3f(planeNormal), temp.length());
             }
          } else {
             // intersection behind ray origin; ignore
@@ -158,12 +168,10 @@ public class Plane extends SceneObject {
       final int x = (int) Math.floor(wD / widthStep);
       final int y = (int) Math.floor(hD / heightStep);
 
-      final Color diffuseColor = colorInfo.diffuse;
-
       if (x % 2 == 0 && y % 2 == 0 || x % 2 != 0 && y % 2 != 0) {
-         return diffuseColor;
+         return colorInfo.diffuse;
       } else {
-         return new Color(255 - diffuseColor.getRed(), 255 - diffuseColor.getGreen(), 255 - diffuseColor.getBlue());
+         return negDiffuse;
       }
    }
 }

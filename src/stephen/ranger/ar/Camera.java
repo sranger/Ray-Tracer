@@ -10,7 +10,6 @@ import java.util.Random;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
-import javax.swing.SwingUtilities;
 import javax.vecmath.Matrix4f;
 import javax.vecmath.Vector3f;
 
@@ -35,7 +34,8 @@ public class Camera {
 
    private final Set<ActionListener> listeners = new HashSet<ActionListener>();
 
-   public Camera(final BoundingVolume[] objects, final LightingModel lightingModel, final Light light, final int samples, final float nearPlane, final int screenWidth, final int screenHeight) {
+   public Camera(final BoundingVolume[] objects, final LightingModel lightingModel, final Light light, final int samples, final float nearPlane, final int screenWidth, final int screenHeight,
+         final float fov) {
       this.objects = objects;
       this.lightingModel = lightingModel;
       this.light = light;
@@ -65,8 +65,16 @@ public class Camera {
          minMax[1][2] = Math.max(minMax[1][2], objMinMax[1][2]);
       }
 
-      origin = new Vector3f((minMax[1][0] - minMax[0][0]) / 2f + minMax[0][0], (minMax[1][1] - minMax[0][1]) / 2f + minMax[0][1], minMax[1][2] * 4f);
-      System.out.println("camera origin: " + origin);
+      final float width = minMax[1][0] - minMax[0][0];
+      final float height = minMax[1][1] - minMax[0][1];
+      final float depth = minMax[1][2] - minMax[0][2];
+      final float centerX = width / 2f + minMax[0][0];
+      final float centerY = height / 2f + minMax[0][1];
+      final float centerZ = depth / 2f + minMax[0][2];
+      final float distance = width / 2f / (float) Math.tan(Math.toRadians(fov));
+      origin = new Vector3f(centerX, centerY, centerZ + distance);
+
+      this.lightingModel.setCameraPosition(new float[] { centerX, centerY, centerZ + distance });
    }
 
    public void setPixel(final int x, final int y, final Color color) {
@@ -74,18 +82,11 @@ public class Camera {
    }
 
    public BufferedImage getImage() {
-      //      final BufferedImage imageCopy = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
-      //      final Graphics g = imageCopy.getGraphics();
-      //      g.drawImage(image, 0, 0, null);
-      //      g.dispose();
-      //
-      //      return imageCopy;
-
       return image;
    }
 
    public void createImage() {
-      SwingUtilities.invokeLater(new Runnable() {
+      new Thread() {
          @Override
          public void run() {
             final float xStart = -(viewportWidth / 2.0f);
@@ -98,11 +99,12 @@ public class Camera {
 
             final Vector3f viewportDirection = new Vector3f();
             IntersectionInformation closest = null;
-            IntersectionInformation temp = null;
+            final IntersectionInformation temp = null;
             float centerX = 0, centerY = 0, xmin = 0, ymin = 0;
 
             final long startTime = System.nanoTime();
-            long innerStart = 0, innerEnd = 0;
+            long innerStart = 0;
+            long innerEnd = 0;
 
             for (int x = 0; x < screenWidth; x++) {
                if (x % 100 == 0) {
@@ -122,28 +124,26 @@ public class Camera {
                      viewportDirection.z = -nearPlaneDistance;
                      rotation.transform(viewportDirection);
                      viewportDirection.normalize();
-                     final Ray ray = new Ray(origin, viewportDirection);
-                     closest = null;
-                     temp = null;
 
-                     for (final BoundingVolume object : objects) {
-                        if (object.intersects(ray)) {
-                           temp = object.getChildIntersection(ray);
-
-                           if (temp != null) {
-                              closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
-                           }
-                        }
-                     }
+                     closest = getClosestIntersection(null, origin, viewportDirection);
 
                      if (closest != null) {
                         colors[i] = lightingModel.getPixelColor(closest);
+
+                        if (closest != null && closest.intersectionObject.getColorInformation(closest).isMirror) {
+                           final IntersectionInformation mirrorInfo = getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, origin));
+                           final float[] mirrorColor = mirrorInfo == null ? light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo).getColorComponents(
+                                 new float[3]);
+                           final float[] color = colors[i].getColorComponents(new float[3]);
+
+                           colors[i] = new Color(color[0] * mirrorColor[0], color[1] * mirrorColor[1], color[2] * mirrorColor[2]);
+                        }
                      } else {
                         colors[i] = light.ambient;
                      }
                   }
 
-                  setPixel(x, y, computeAverage(colors));
+                  Camera.this.setPixel(x, y, Camera.this.computeAverage(colors));
                }
 
                if (x % 100 == 99) {
@@ -166,7 +166,25 @@ public class Camera {
 
             listeners.clear();
          }
-      });
+      }.start();
+   }
+
+   private IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
+      final Ray ray = new Ray(origin, direction);
+      IntersectionInformation closest = null;
+      IntersectionInformation temp = null;
+
+      for (final BoundingVolume object : objects) {
+         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
+            temp = object.getChildIntersection(ray);
+
+            if (temp != null) {
+               closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
+            }
+         }
+      }
+
+      return closest;
    }
 
    private Color computeAverage(final Color[] colors) {

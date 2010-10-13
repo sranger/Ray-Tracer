@@ -1,21 +1,27 @@
 package stephen.ranger.ar;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.File;
 
-import javax.swing.ImageIcon;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.vecmath.Vector3f;
 
@@ -41,31 +47,30 @@ public class RayTracer {
    }
 
    private final Scene getScene(final String label) {
-      final Light light = new Light(new Vector3f(0, 100, 100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.9f, 1.0f));
+      final Light light = new Light(new Vector3f(0, 100, 100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.5f, 1.0f));
 
       if (label.equals(sceneLabels[0])) {
          final BoundingVolume[] whittedObjects = getWhittedObjects();
-         return new Scene(sceneLabels[0], whittedObjects, light, new float[] { 0, 0, 0 }, new float[] { 0, 0, 0 }, new PhongLightingModel(new Vector3f(), light, whittedObjects));
+         return new Scene(sceneLabels[0], whittedObjects, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, whittedObjects), 35f);
       } else if (label.equals(sceneLabels[1])) {
          final BoundingVolume[] bunnyModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "bunny/reconstruction/bun_zipper.ply"), new ColorInformation(Color.white)).boundingVolume };
-         return new Scene(sceneLabels[1], bunnyModel, light, new float[] { -0.02f, 0.1f, 0.2f }, new float[] { 0, 0, 0 }, new PhongLightingModel(new Vector3f(-0.02f, 0.1f, 0.2f), light, bunnyModel));
+         return new Scene(sceneLabels[1], bunnyModel, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, bunnyModel), 15f);
       } else if (label.equals(sceneLabels[2])) {
          final BoundingVolume[] dragonModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "dragon_recon/dragon_vrip.ply"), new ColorInformation(Color.white)).boundingVolume };
-         return new Scene(sceneLabels[2], dragonModel, light, new float[] { 0f, 0.12f, -0.2f }, new float[] { 180, 0, 0 }, new PhongLightingModel(new Vector3f(0f, 0.12f, -0.2f), light, dragonModel));
+         return new Scene(sceneLabels[2], dragonModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, dragonModel), 15f);
       } else if (label.equals(sceneLabels[3])) {
          final BoundingVolume[] buddhaModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "happy_recon/happy_vrip.ply"), new ColorInformation(Color.white)).boundingVolume };
-         return new Scene(sceneLabels[3], buddhaModel, light, new float[] { 0f, 0.12f, -0.2f }, new float[] { 180, 0, 0 }, new PhongLightingModel(new Vector3f(0f, 0.12f, -0.2f), light, buddhaModel));
+         return new Scene(sceneLabels[3], buddhaModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, buddhaModel), 15f);
       }
 
       return null;
    }
 
    private final BoundingVolume[] getWhittedObjects() {
-      final Plane plane = new Plane(new Vector3f[] { new Vector3f(-100, -50, 100), new Vector3f(-100, -50, 1100), new Vector3f(600, -50, 1100), new Vector3f(600, -50, 100) }, new ColorInformation(
-            Color.yellow));
+      final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 50), new Vector3f(50, -40, 50), new Vector3f(50, 0, -100) }, new ColorInformation(Color.yellow));
 
-      final Sphere sphere1 = new Sphere(6, new Vector3f(0, 0, 45), new ColorInformation(Color.blue));
-      final Sphere sphere2 = new Sphere(7, new Vector3f(10, -10, 60), new ColorInformation(new Color(0.5f, 0.5f, 0.5f, 1f)));
+      final Sphere sphere1 = new Sphere(6, new Vector3f(0, -10, 0), new ColorInformation(Color.blue));
+      final Sphere sphere2 = new Sphere(4, new Vector3f(5, -15, -10), new ColorInformation(Color.white, true));
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
 
@@ -76,6 +81,7 @@ public class RayTracer {
 
       final JPanel sidePanel = new JPanel();
       final JPanel imagePanel = new JPanel();
+      imagePanel.setLayout(new GridLayout(1, 1));
 
       final JLabel samplesLabel = new JLabel("Samples");
       final JLabel sceneLabel = new JLabel("Scene");
@@ -89,10 +95,20 @@ public class RayTracer {
       final JComboBox sceneComboBox = new JComboBox(sceneLabels);
       sceneComboBox.setPreferredSize(new Dimension(150, 50));
 
-      final ImageIcon icon = new ImageIcon();
-      final JLabel iconLabel = new JLabel();
-      iconLabel.setIcon(icon);
+      final JLabel iconLabel = new JLabel() {
+         @Override
+         public void paint(final Graphics g) {
+            if (camera != null) {
+               final BufferedImage image = camera.getImage();
+               g.drawImage(image, 0, 0, null);
+               g.finalize();
+            }
+         }
+      };
+
       final JScrollPane imagePane = new JScrollPane(iconLabel);
+      imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+      imagePane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
       imagePane.setPreferredSize(new Dimension(550, 550));
 
       final JButton renderButton = new JButton("Render Scene");
@@ -108,25 +124,27 @@ public class RayTracer {
             renderButton.setEnabled(false);
             closeButton.setEnabled(false);
 
-            final Scene scene = getScene(sceneComboBox.getSelectedItem().toString());
+            final Scene scene = RayTracer.this.getScene(sceneComboBox.getSelectedItem().toString());
             camera = new Camera(scene.objects, scene.lightingModel, scene.light, (Integer) samplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(), (Integer) imageYField
-                  .getValue());
-            icon.setImage(camera.getImage());
+                  .getValue(), scene.fov);
             camera.addActionListener(new ActionListener() {
                @Override
                public void actionPerformed(final ActionEvent event) {
                   if (event.getID() == 1) {
-                     System.out.println("finished");
                      sceneComboBox.setEnabled(true);
                      imageXField.setEnabled(true);
                      imageYField.setEnabled(true);
                      samplesField.setEnabled(true);
                      renderButton.setEnabled(true);
                      closeButton.setEnabled(true);
-                     imagePane.invalidate();
+                     iconLabel.revalidate();
+
                      imagePane.repaint();
                   } else if (event.getID() == 2) {
-                     imagePane.invalidate();
+                     final BufferedImage image = camera.getImage();
+                     iconLabel.setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+                     iconLabel.revalidate();
+
                      imagePane.repaint();
                   }
                }
@@ -148,11 +166,36 @@ public class RayTracer {
       sidePanel.add(renderButton);
       sidePanel.add(closeButton);
 
+      sidePanel.setMaximumSize(new Dimension(250, 250));
+      sidePanel.setAlignmentX(JDialog.CENTER_ALIGNMENT);
+
       imagePanel.add(imagePane);
 
-      frame.getContentPane().setLayout(new FlowLayout());
-      frame.getContentPane().add(sidePanel);
-      frame.getContentPane().add(imagePanel);
+      final JButton saveButton = new JButton("Save Image to File...");
+      saveButton.setAlignmentX(JDialog.CENTER_ALIGNMENT);
+      saveButton.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(final ActionEvent event) {
+            final JFileChooser fileChooser = new JFileChooser();
+            final int result = fileChooser.showSaveDialog(frame);
+
+            if (result == JFileChooser.APPROVE_OPTION) {
+               final String path = fileChooser.getSelectedFile().getAbsolutePath();
+
+               camera.writeOutputFile(!path.endsWith(".png") || !path.endsWith(".jpg") ? path + ".png" : path);
+            }
+         }
+      });
+
+      final JPanel sideParentPanel = new JPanel();
+      sideParentPanel.setLayout(new BoxLayout(sideParentPanel, BoxLayout.PAGE_AXIS));
+      sideParentPanel.add(sidePanel);
+      sideParentPanel.add(Box.createRigidArea(new Dimension(0, 25)));
+      sideParentPanel.add(saveButton);
+
+      frame.getContentPane().setLayout(new BorderLayout());
+      frame.getContentPane().add(sideParentPanel, BorderLayout.WEST);
+      frame.getContentPane().add(imagePanel, BorderLayout.CENTER);
 
       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
       frame.pack();

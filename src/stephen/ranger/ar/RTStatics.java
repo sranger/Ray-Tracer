@@ -22,9 +22,10 @@ public class RTStatics {
       // only static stuff here
    }
 
+   // r = -2N(L.N)+L
    public static Vector3f getReflectionDirection(final IntersectionInformation info, final Vector3f p1) {
       final Vector3f L = new Vector3f();
-      L.sub(p1, info.intersection);
+      L.sub(info.intersection, p1);
       L.normalize();
 
       final Vector3f R = new Vector3f(info.normal);
