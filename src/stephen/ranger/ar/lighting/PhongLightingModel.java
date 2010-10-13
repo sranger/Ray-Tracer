@@ -65,16 +65,17 @@ public class PhongLightingModel extends LightingModel {
       IntersectionInformation shadowInfo = null;
 
       for (final BoundingVolume object : objects) {
-         if (!object.equals(info.intersectionObject)) {
-            shadowInfo = object.getChildIntersection(shadowRay);
+         // TODO: dont check against individual objects but against triangles in a mesh
+         //         if (!object.equals(info.intersectionObject)) {
+         shadowInfo = object.getChildIntersection(shadowRay);
 
-            if (shadowInfo != null) {
-               final float[] objectColor = new float[] { 0, 0, 0 };//shadowInfo.intersectionObject.getColor(shadowInfo).getColorComponents(new float[3]);
-               final float[] ambient = light.ambient.getColorComponents(new float[3]);
+         if (shadowInfo != null) {
+            final float[] objectColor = new float[] { 0, 0, 0 };//shadowInfo.intersectionObject.getColor(shadowInfo).getColorComponents(new float[3]);
+            final float[] ambient = light.ambient.getColorComponents(new float[3]);
 
-               return new Color(0.3f * ambient[0], 0.3f * ambient[1], 0.3f * ambient[2]);//ambient[0] * objectColor[0], ambient[1] * objectColor[1], ambient[2] * objectColor[2], 1f);
-            }
+            return new Color(0.3f * ambient[0], 0.3f * ambient[1], 0.3f * ambient[2]);//ambient[0] * objectColor[0], ambient[1] * objectColor[1], ambient[2] * objectColor[2], 1f);
          }
+         //         }
       }
 
       return PhongLightingModel.NO_SHADOW_COMPONENT;

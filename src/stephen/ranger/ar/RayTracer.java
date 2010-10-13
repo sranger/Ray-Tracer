@@ -56,11 +56,11 @@ public class RayTracer {
          final BoundingVolume[] bunnyModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "bunny/reconstruction/bun_zipper.ply"), new ColorInformation(Color.white)).boundingVolume };
          return new Scene(sceneLabels[1], bunnyModel, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, bunnyModel), 15f);
       } else if (label.equals(sceneLabels[2])) {
-         final BoundingVolume[] dragonModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "dragon_recon/dragon_vrip.ply"), new ColorInformation(Color.white)).boundingVolume };
-         return new Scene(sceneLabels[2], dragonModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, dragonModel), 15f);
+         final BoundingVolume[] dragonModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "dragon_recon/dragon_vrip.ply"), new ColorInformation(new Color(0.9f, 0.9f, 0.9f, 1f))).boundingVolume };
+         return new Scene(sceneLabels[2], dragonModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, dragonModel), 23f);
       } else if (label.equals(sceneLabels[3])) {
          final BoundingVolume[] buddhaModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "happy_recon/happy_vrip.ply"), new ColorInformation(Color.white)).boundingVolume };
-         return new Scene(sceneLabels[3], buddhaModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, buddhaModel), 15f);
+         return new Scene(sceneLabels[3], buddhaModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, buddhaModel), 10f);
       }
 
       return null;
