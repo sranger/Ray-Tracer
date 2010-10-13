@@ -113,7 +113,7 @@ public class KDNode extends BoundingVolume {
             if (RTStatics.aabbIntersection(ray, childMinMax)) {
                temp = Triangle.intersectsTriangle(ray.origin, ray.direction, this.vertices, this.normals, face);
 
-               if ((temp != null) && ((closest == null) || (temp[6] < closest[6]))) {
+               if ((temp != null) && (temp[6] > RTStatics.EPSILON) && ((closest == null) || (temp[6] < closest[6]))) {
                   closest = temp;
                }
             }

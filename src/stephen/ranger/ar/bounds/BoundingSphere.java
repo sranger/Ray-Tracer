@@ -114,7 +114,7 @@ public class BoundingSphere extends BoundingVolume {
 
    @Override
    public Color getColor(final IntersectionInformation info) {
-      return this.child.getColor(info);
+      return this.child.getColor(info.intersection);
    }
 
    @Override

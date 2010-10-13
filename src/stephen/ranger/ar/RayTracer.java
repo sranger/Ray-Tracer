@@ -33,13 +33,14 @@ import stephen.ranger.ar.sceneObjects.Sphere;
 import stephen.ranger.ar.sceneObjects.TriangleMesh;
 
 public class RayTracer {
-   public static final String baseDir = "C:/Users/sano/Documents/models/";
-   public static final String[] sceneLabels = new String[] { "Whitted Scene", "Stanford Bunny", "Stanford Dragon", "Stanford Buddha" };
+   // public static final String baseDir = "C:/Users/sano/Documents/models/";
+   public static final String baseDir = "D:/models/";
+   public static final String[] sceneLabels = new String[] { "Whitted Scene", "Stanford Bunny", "Stanford Dragon", "Stanford Buddha", "Stanford Lucy" };
 
    private Camera camera = null;
 
    public RayTracer() {
-      initializeUI();
+      this.initializeUI();
    }
 
    public static void main(final String[] args) {
@@ -47,10 +48,10 @@ public class RayTracer {
    }
 
    private final Scene getScene(final String label) {
-      final Light light = new Light(new Vector3f(0, 100, 100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.5f, 1.0f));
+      final Light light = new Light(new Vector3f(0, 100, 100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.9f, 1.0f));
 
       if (label.equals(sceneLabels[0])) {
-         final BoundingVolume[] whittedObjects = getWhittedObjects();
+         final BoundingVolume[] whittedObjects = this.getWhittedObjects();
          return new Scene(sceneLabels[0], whittedObjects, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, whittedObjects), 35f);
       } else if (label.equals(sceneLabels[1])) {
          final BoundingVolume[] bunnyModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "bunny/reconstruction/bun_zipper.ply"), new ColorInformation(Color.white)).boundingVolume };
@@ -61,16 +62,19 @@ public class RayTracer {
       } else if (label.equals(sceneLabels[3])) {
          final BoundingVolume[] buddhaModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "happy_recon/happy_vrip.ply"), new ColorInformation(Color.white)).boundingVolume };
          return new Scene(sceneLabels[3], buddhaModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, buddhaModel), 10f);
+      } else if (label.equals(sceneLabels[4])) {
+         final BoundingVolume[] buddhaModel = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "lucy.ply"), new ColorInformation(Color.white)).boundingVolume };
+         return new Scene(sceneLabels[3], buddhaModel, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, buddhaModel), 10f);
       }
 
       return null;
    }
 
    private final BoundingVolume[] getWhittedObjects() {
-      final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 50), new Vector3f(50, -40, 50), new Vector3f(50, 0, -100) }, new ColorInformation(Color.yellow));
+      final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25), new Vector3f(50, 0, -100) }, new ColorInformation(Color.yellow));
 
-      final Sphere sphere1 = new Sphere(6, new Vector3f(0, -10, 0), new ColorInformation(Color.blue));
-      final Sphere sphere2 = new Sphere(4, new Vector3f(5, -15, -10), new ColorInformation(Color.white, true));
+      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), new ColorInformation(Color.blue));
+      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), new ColorInformation(Color.white, true));
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
 
@@ -98,8 +102,8 @@ public class RayTracer {
       final JLabel iconLabel = new JLabel() {
          @Override
          public void paint(final Graphics g) {
-            if (camera != null) {
-               final BufferedImage image = camera.getImage();
+            if (RayTracer.this.camera != null) {
+               final BufferedImage image = RayTracer.this.camera.getImage();
                g.drawImage(image, 0, 0, null);
                g.finalize();
             }
@@ -125,9 +129,9 @@ public class RayTracer {
             closeButton.setEnabled(false);
 
             final Scene scene = RayTracer.this.getScene(sceneComboBox.getSelectedItem().toString());
-            camera = new Camera(scene.objects, scene.lightingModel, scene.light, (Integer) samplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(), (Integer) imageYField
+            RayTracer.this.camera = new Camera(scene.objects, scene.lightingModel, scene.light, (Integer) samplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(), (Integer) imageYField
                   .getValue(), scene.fov);
-            camera.addActionListener(new ActionListener() {
+            RayTracer.this.camera.addActionListener(new ActionListener() {
                @Override
                public void actionPerformed(final ActionEvent event) {
                   if (event.getID() == 1) {
@@ -141,7 +145,7 @@ public class RayTracer {
 
                      imagePane.repaint();
                   } else if (event.getID() == 2) {
-                     final BufferedImage image = camera.getImage();
+                     final BufferedImage image = RayTracer.this.camera.getImage();
                      iconLabel.setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
                      iconLabel.revalidate();
 
@@ -150,7 +154,7 @@ public class RayTracer {
                }
             });
 
-            camera.createImage();
+            RayTracer.this.camera.createImage();
          }
       });
 
@@ -182,7 +186,7 @@ public class RayTracer {
             if (result == JFileChooser.APPROVE_OPTION) {
                final String path = fileChooser.getSelectedFile().getAbsolutePath();
 
-               camera.writeOutputFile(!path.endsWith(".png") || !path.endsWith(".jpg") ? path + ".png" : path);
+               RayTracer.this.camera.writeOutputFile(!path.endsWith(".png") || !path.endsWith(".jpg") ? path + ".png" : path);
             }
          }
       });

@@ -27,7 +27,7 @@ public abstract class SceneObject {
    }
 
    public SceneObject() {
-      colorInfo = new ColorInformation(Color.black, Color.white, Color.white, Color.white, 20, false);
+      this.colorInfo = new ColorInformation(Color.black, Color.white, Color.white, Color.white, 20, false);
    }
 
    /**
@@ -48,7 +48,7 @@ public abstract class SceneObject {
     * @return A BoundingVolume that contains the bounds of this SceneObject
     */
    public BoundingVolume getBoundingVolume() {
-      return boundingVolume;
+      return this.boundingVolume;
    }
 
    /**
@@ -57,7 +57,7 @@ public abstract class SceneObject {
     * @param info  The IntersectionInformation that contains the intersection location.
     * @return  The color to display at the given intersection location
     */
-   public Color getColor(final IntersectionInformation info) {
-      return info.intersectionObject.getColorInformation(info).diffuse;
+   public Color getColor(final Vector3f intersection) {
+      return this.colorInfo.diffuse;
    }
 }

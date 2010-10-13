@@ -22,16 +22,20 @@ public class RTStatics {
       // only static stuff here
    }
 
-   // r = -2N(L.N)+L
-   public static Vector3f getReflectionDirection(final IntersectionInformation info, final Vector3f p1) {
-      final Vector3f L = new Vector3f();
-      L.sub(info.intersection, p1);
-      L.normalize();
-
-      final Vector3f R = new Vector3f(info.normal);
-      R.scale(-2.0f);
-      R.scale(L.dot(info.normal));
-      R.add(R, L);
+   /**
+    * r = L - 2 * N * L.dot(N)
+    * 
+    * @param info
+    * @param L
+    *           direction to reflect through info.normal
+    * @return
+    */
+   public static Vector3f getReflectionDirection(final IntersectionInformation info, final Vector3f L) {
+      final Vector3f R = new Vector3f();
+      final Vector3f N = new Vector3f(info.normal);
+      N.scale(2f);
+      N.scale(L.dot(info.normal));
+      R.sub(L, N);
       R.normalize();
 
       return R;
@@ -40,11 +44,11 @@ public class RTStatics {
    public static float leastPositive(final float i, final float j) {
       float retVal;
 
-      if (i < 0 && j < 0) {
+      if ((i < 0) && (j < 0)) {
          retVal = -1;
-      } else if (i < 0 && j > 0) {
+      } else if ((i < 0) && (j > 0)) {
          retVal = j;
-      } else if (i > 0 && j < 0) {
+      } else if ((i > 0) && (j < 0)) {
          retVal = i;
       } else {
          if (i < j) {
@@ -80,7 +84,7 @@ public class RTStatics {
          tymax = (minMax[0][1] - r.origin.y) * divy;
       }
 
-      if (txmin > tymax || tymin > txmax) {
+      if ((txmin > tymax) || (tymin > txmax)) {
          return false;
       }
 
@@ -100,7 +104,7 @@ public class RTStatics {
          tzmax = (minMax[0][2] - r.origin.z) * divz;
       }
 
-      if (txmin > tzmax || tzmin > txmax) {
+      if ((txmin > tzmax) || (tzmin > txmax)) {
          return false;
       }
 
@@ -112,7 +116,7 @@ public class RTStatics {
          txmax = tzmax;
       }
 
-      return txmin < RTStatics.farPlane && txmax > RTStatics.nearPlane;
+      return (txmin < RTStatics.farPlane) && (txmax > RTStatics.nearPlane);
    }
 
    /**
@@ -124,6 +128,19 @@ public class RTStatics {
     */
    public static float getDistance(final float[] p1, final float[] p2) {
       return (float) Math.sqrt((p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1]) + (p1[2] - p2[2]) * (p1[2] - p2[2]));
+   }
+
+   /**
+    * Returns the distance between the two given vertices.
+    * 
+    * @param p1
+    *           Vertex 1
+    * @param p2
+    *           Vertex 2
+    * @return The distance between p1 and p2
+    */
+   public static float getDistance(final Vector3f p1, final Vector3f p2) {
+      return (float) Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z));
    }
 
    /**

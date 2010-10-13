@@ -28,6 +28,6 @@ public class ColorInformation {
    }
 
    public ColorInformation(final Color diffuse, final boolean isMirror) {
-      this(Color.black, diffuse, diffuse, diffuse, 0, isMirror);
+      this(Color.black, diffuse, diffuse, diffuse, 50, isMirror);
    }
 }
