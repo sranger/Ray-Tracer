@@ -40,17 +40,17 @@ public class Camera {
       this.lightingModel = lightingModel;
       this.light = light;
       this.samples = samples;
-      this.orientation = new float[] { 0, 0, 0 };
-      this.nearPlaneDistance = nearPlane;
+      orientation = new float[] { 0, 0, 0 };
+      nearPlaneDistance = nearPlane;
       this.screenWidth = screenWidth;
       this.screenHeight = screenHeight;
-      this.viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * this.nearPlaneDistance;
-      this.viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * this.nearPlaneDistance;
+      viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * nearPlaneDistance;
+      viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * nearPlaneDistance;
 
-      this.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
+      image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
 
-      this.rotation = new Matrix4f();
-      this.rotation.set(RTStatics.initializeQuat4f(this.orientation));
+      rotation = new Matrix4f();
+      rotation.set(RTStatics.initializeQuat4f(orientation));
 
       final float[][] minMax = new float[][] { { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE }, { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE } };
 
@@ -72,79 +72,81 @@ public class Camera {
       final float centerY = height / 2f + minMax[0][1];
       final float centerZ = depth / 2f + minMax[0][2];
       final float distance = width / 2f / (float) Math.tan(Math.toRadians(fov));
-      this.origin = new Vector3f(centerX, centerY, centerZ + distance);
+      origin = new Vector3f(centerX, centerY, centerZ + distance);
 
       this.lightingModel.setCameraPosition(new float[] { centerX, centerY, centerZ + distance });
    }
 
    public void setPixel(final int x, final int y, final Color color) {
-      this.image.setRGB(x, y, color.getRGB());
+      image.setRGB(x, y, color.getRGB());
    }
 
    public BufferedImage getImage() {
-      return this.image;
+      return image;
    }
 
    public void createImage() {
       new Thread() {
          @Override
          public void run() {
-            final float xStart = -(Camera.this.viewportWidth / 2.0f);
-            final float yStart = Camera.this.viewportHeight / 2.0f;
-            final float xInc = Camera.this.viewportWidth / Camera.this.screenWidth;
-            final float yInc = Camera.this.viewportHeight / Camera.this.screenHeight;
+            final float xStart = -(viewportWidth / 2.0f);
+            final float yStart = viewportHeight / 2.0f;
+            final float xInc = viewportWidth / screenWidth;
+            final float yInc = viewportHeight / screenHeight;
             final Random random = new Random();
 
-            final Color[] colors = new Color[Camera.this.samples];
+            final Color[] colors = new Color[samples];
 
             final Vector3f viewportDirection = new Vector3f();
             IntersectionInformation closest = null;
-            final IntersectionInformation temp = null;
             float centerX = 0, centerY = 0, xmin = 0, ymin = 0;
 
             final long startTime = System.nanoTime();
             long innerStart = 0;
             long innerEnd = 0;
 
-            for (int x = 0; x < Camera.this.screenWidth; x++) {
+            for (int x = 0; x < screenWidth; x++) {
                if (x % 100 == 0) {
                   innerStart = System.nanoTime();
                   System.out.print("lines " + x + " - " + (x + 99) + ": ");
                }
 
-               for (int y = 0; y < Camera.this.screenHeight; y++) {
+               for (int y = 0; y < screenHeight; y++) {
                   centerX = xStart + xInc * x;
                   centerY = yStart - yInc * y;
                   xmin = centerX - xInc / 2f;
                   ymin = centerY - yInc / 2f;
 
-                  for (int i = 0; i < Camera.this.samples; i++) {
+                  for (int i = 0; i < samples; i++) {
                      viewportDirection.x = i == 0 ? centerX : random.nextFloat() * xInc + xmin;
                      viewportDirection.y = i == 0 ? centerY : random.nextFloat() * yInc + ymin;
-                     viewportDirection.z = -Camera.this.nearPlaneDistance;
-                     Camera.this.rotation.transform(viewportDirection);
+                     viewportDirection.z = -nearPlaneDistance;
+                     rotation.transform(viewportDirection);
                      viewportDirection.normalize();
 
-                     closest = Camera.this.getClosestIntersection(null, Camera.this.origin, viewportDirection);
+                     closest = Camera.this.getClosestIntersection(null, origin, viewportDirection);
 
                      if (closest != null) {
-                        colors[i] = Camera.this.lightingModel.getPixelColor(closest);
+                        colors[i] = lightingModel.getPixelColor(closest);
 
-                        if ((closest != null) && closest.intersectionObject.getColorInformation(closest).isMirror) {
+                        if (closest != null && closest.intersectionObject.getColorInformation(closest).isMirror) {
                            final Vector3f V = new Vector3f(closest.intersection);
-                           V.sub(Camera.this.origin);
+                           V.sub(origin);
                            V.normalize();
 
                            final IntersectionInformation mirrorInfo = Camera.this
-                           .getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
-                           final float[] mirrorColor = mirrorInfo == null ? Camera.this.light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo)
-                                 .getColorComponents(new float[3]);
+                                 .getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
+                           final float[] mirrorColor = mirrorInfo == null ? light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo).getColorComponents(
+                                 new float[3]);
                            final float[] color = colors[i].getColorComponents(new float[3]);
 
                            colors[i] = new Color(color[0] * mirrorColor[0], color[1] * mirrorColor[1], color[2] * mirrorColor[2]);
+                        } else if (closest.intersectionObject.getColorInformation(closest) instanceof BRDFMaterial) {
+                           final float luminance = BRDFMaterial.getBRDFLuminance(closest, light);
+                           colors[i] = new Color(luminance * colors[i].getRed() / 255f, luminance * colors[i].getGreen() / 255f, luminance * colors[i].getBlue() / 255f);
                         }
                      } else {
-                        colors[i] = Camera.this.light.ambient;
+                        colors[i] = light.ambient;
                      }
                   }
 
@@ -155,7 +157,7 @@ public class Camera {
                   innerEnd = System.nanoTime();
                   System.out.println("duration: " + (innerEnd - innerStart) / 1000000000. + " seconds");
 
-                  for (final ActionListener listener : Camera.this.listeners) {
+                  for (final ActionListener listener : listeners) {
                      listener.actionPerformed(new ActionEvent(this, 2, "update"));
                   }
                }
@@ -165,11 +167,11 @@ public class Camera {
 
             System.out.println("elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
 
-            for (final ActionListener listener : Camera.this.listeners) {
+            for (final ActionListener listener : listeners) {
                listener.actionPerformed(new ActionEvent(this, 1, "finished"));
             }
 
-            Camera.this.listeners.clear();
+            listeners.clear();
          }
       }.start();
    }
@@ -179,11 +181,11 @@ public class Camera {
       IntersectionInformation closest = null;
       IntersectionInformation temp = null;
 
-      for (final BoundingVolume object : this.objects) {
-         if (((mirrorObject == null) || !mirrorObject.equals(object)) && object.intersects(ray)) {
+      for (final BoundingVolume object : objects) {
+         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
             temp = object.getChildIntersection(ray);
 
-            if ((temp != null) && (temp.w > RTStatics.EPSILON)) {
+            if (temp != null && temp.w > RTStatics.EPSILON) {
                closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
             }
          }
@@ -211,7 +213,7 @@ public class Camera {
       try {
          if (output.createNewFile() || output.canWrite()) {
             final String[] split = outputFile.split("\\.");
-            ImageIO.write(this.image, split[split.length - 1], output);
+            ImageIO.write(image, split[split.length - 1], output);
             System.out.println("Image saved to " + outputFile + " successfully");
          }
       } catch (final Exception e) {
@@ -220,6 +222,6 @@ public class Camera {
    }
 
    public void addActionListener(final ActionListener actionListener) {
-      this.listeners.add(actionListener);
+      listeners.add(actionListener);
    }
 }
