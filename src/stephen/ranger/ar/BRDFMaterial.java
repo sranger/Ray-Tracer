@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import javax.vecmath.Matrix4f;
 import javax.vecmath.Vector3f;
 
 public class BRDFMaterial extends ColorInformation {
@@ -49,18 +48,25 @@ public class BRDFMaterial extends ColorInformation {
 
    public float getBRDFLuminocity(final IntersectionInformation info, final Camera camera) {
       final Random random = new Random();
-      final Vector3f in = new Vector3f();
-      final Vector3f out = new Vector3f();
+      final float[] in = new float[2];
+      final float[] out = new float[2];
       float luminocity = 0f;
       float weight = 0f;
       int ctr = 0;
 
+      final Vector3f tempDir = new Vector3f();
+
       for (int i = 0; i < camera.brdfSamples; i++) {
-         in.sub(info.intersection, camera.light.origin);
-         in.normalize();
-         // get random view/light directions in range of [-1,1], [0,1], [-1,1]
-         out.set(random.nextFloat() * 2f - 1f, random.nextFloat(), random.nextFloat() * 2f - 1f);
-         out.normalize();
+         tempDir.sub(info.intersection, camera.light.origin);
+         tempDir.normalize();
+
+         in[0] = (float) Math.acos(tempDir.z);
+         in[1] = (float) Math.atan(tempDir.y / tempDir.x);
+
+         // get random view direction in range of [0,2PI], [0,PI/2]
+         out[0] = random.nextFloat() * PBRTMath.F_2_PI;
+         out[1] = random.nextFloat() * PBRTMath.F_HALF_PI;
+
          final float[] remaped = PBRTMath.getRemapedDirection(in, out);
          float lastMaxDist2 = 0.001f;
 
@@ -144,18 +150,9 @@ public class BRDFMaterial extends ColorInformation {
     */
    private static float[][] remapDirections(final float[][] directions) {
       final float[][] remapedDirections = new float[directions.length][];
-      final Matrix4f rotation = new Matrix4f();
-      final Vector3f in = new Vector3f();
-      final Vector3f out = new Vector3f();
 
       for (int i = 0; i < directions.length; i++) {
-         rotation.set(RTStatics.initializeQuat4f(new float[] { (float) Math.toDegrees(directions[i][0]), (float) Math.toDegrees(directions[i][1]), 0f }));
-         out.set(0, 0, 1);
-         rotation.transform(out);
-         in.set(0, 0, 1);
-         rotation.transform(in);
-
-         remapedDirections[i] = PBRTMath.getRemapedDirection(in, out);
+         remapedDirections[i] = PBRTMath.getRemapedDirection(new float[] { directions[i][0], directions[i][1] }, new float[] { directions[i][2], directions[i][3] });
       }
 
       return remapedDirections;

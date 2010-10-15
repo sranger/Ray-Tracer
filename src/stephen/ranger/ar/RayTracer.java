@@ -109,8 +109,8 @@ public class RayTracer {
    private final BoundingVolume[] getWhittedObjects(final boolean useBRDFs) {
       final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25), new Vector3f(50, 0, -100) }, new ColorInformation(Color.yellow));
 
-      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(0, Color.white) : new ColorInformation(Color.blue));
-      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(1, Color.cyan) : new ColorInformation(Color.white, true));
+      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(15, Color.white) : new ColorInformation(Color.blue));
+      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(16, Color.cyan) : new ColorInformation(Color.white, true));
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
 
@@ -130,7 +130,7 @@ public class RayTracer {
       final JLabel imageHeightLabel = new JLabel("Image Height");
 
       final JSpinner multiSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 400, 1));
-      final JSpinner brdfSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 25, 1));
+      final JSpinner brdfSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 205, 1));
       final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 1));
       final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 1));
 
