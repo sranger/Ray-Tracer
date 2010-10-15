@@ -109,8 +109,8 @@ public class RayTracer {
    private final BoundingVolume[] getWhittedObjects(final boolean useBRDFs) {
       final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25), new Vector3f(50, 0, -100) }, new ColorInformation(Color.yellow));
 
-      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(0, Color.blue) : new ColorInformation(Color.blue));
-      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(1, Color.red) : new ColorInformation(Color.white, true));
+      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(0, Color.white) : new ColorInformation(Color.blue));
+      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(1, Color.cyan) : new ColorInformation(Color.white, true));
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
 
@@ -123,17 +123,27 @@ public class RayTracer {
       final JPanel imagePanel = new JPanel();
       imagePanel.setLayout(new GridLayout(1, 1));
 
-      final JLabel samplesLabel = new JLabel("Samples");
+      final JLabel multiSamplesLabel = new JLabel("Multi-Samples");
+      final JLabel brdfSamplesLabel = new JLabel("BRDF-Samples");
       final JLabel sceneLabel = new JLabel("Scene");
       final JLabel imageWidthLabel = new JLabel("Image Width");
       final JLabel imageHeightLabel = new JLabel("Image Height");
 
-      final JSpinner samplesField = new JSpinner(new SpinnerNumberModel(1, 1, 400, 1));
-      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(512, 1, 3000, 1));
-      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(512, 1, 3000, 1));
+      final JSpinner multiSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 400, 1));
+      final JSpinner brdfSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 25, 1));
+      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 1));
+      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 1));
 
       final JComboBox sceneComboBox = new JComboBox(sceneLabels);
       sceneComboBox.setPreferredSize(new Dimension(150, 50));
+      sceneComboBox.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(final ActionEvent event) {
+            if (sceneComboBox.getSelectedIndex() == 1) {
+               brdfSamplesField.setValue(Integer.valueOf(25));
+            }
+         }
+      });
 
       final JLabel iconLabel = new JLabel() {
          @Override
@@ -149,7 +159,7 @@ public class RayTracer {
       final JScrollPane imagePane = new JScrollPane(iconLabel);
       imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
       imagePane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-      imagePane.setPreferredSize(new Dimension(550, 550));
+      imagePane.setPreferredSize(new Dimension(1100, 1100));
 
       final JButton renderButton = new JButton("Render Scene");
       final JButton closeButton = new JButton("Close");
@@ -160,12 +170,14 @@ public class RayTracer {
             sceneComboBox.setEnabled(false);
             imageXField.setEnabled(false);
             imageYField.setEnabled(false);
-            samplesField.setEnabled(false);
+            multiSamplesField.setEnabled(false);
+            brdfSamplesField.setEnabled(false);
             renderButton.setEnabled(false);
             closeButton.setEnabled(false);
 
             final Scene scene = RayTracer.this.getScene(sceneComboBox.getSelectedItem().toString());
-            camera = new Camera(scene, (Integer) samplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(), (Integer) imageYField.getValue());
+            camera = new Camera(scene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(), (Integer) imageYField
+                  .getValue());
             camera.addActionListener(new ActionListener() {
                @Override
                public void actionPerformed(final ActionEvent event) {
@@ -173,7 +185,8 @@ public class RayTracer {
                      sceneComboBox.setEnabled(true);
                      imageXField.setEnabled(true);
                      imageYField.setEnabled(true);
-                     samplesField.setEnabled(true);
+                     multiSamplesField.setEnabled(true);
+                     brdfSamplesField.setEnabled(true);
                      renderButton.setEnabled(true);
                      closeButton.setEnabled(true);
                      iconLabel.revalidate();
@@ -202,15 +215,17 @@ public class RayTracer {
          }
       });
 
-      sidePanel.setLayout(new GridLayout(5, 2));
+      sidePanel.setLayout(new GridLayout(6, 2));
       sidePanel.add(sceneLabel);
       sidePanel.add(sceneComboBox);
       sidePanel.add(imageWidthLabel);
       sidePanel.add(imageXField);
       sidePanel.add(imageHeightLabel);
       sidePanel.add(imageYField);
-      sidePanel.add(samplesLabel);
-      sidePanel.add(samplesField);
+      sidePanel.add(multiSamplesLabel);
+      sidePanel.add(multiSamplesField);
+      sidePanel.add(brdfSamplesLabel);
+      sidePanel.add(brdfSamplesField);
       sidePanel.add(renderButton);
       sidePanel.add(closeButton);
 

@@ -1,5 +1,7 @@
 package stephen.ranger.ar;
 
+import java.awt.Color;
+
 import javax.vecmath.AxisAngle4f;
 import javax.vecmath.Matrix4f;
 import javax.vecmath.Quat4f;
@@ -44,11 +46,11 @@ public class RTStatics {
    public static float leastPositive(final float i, final float j) {
       float retVal;
 
-      if ((i < 0) && (j < 0)) {
+      if (i < 0 && j < 0) {
          retVal = -1;
-      } else if ((i < 0) && (j > 0)) {
+      } else if (i < 0 && j > 0) {
          retVal = j;
-      } else if ((i > 0) && (j < 0)) {
+      } else if (i > 0 && j < 0) {
          retVal = i;
       } else {
          if (i < j) {
@@ -84,7 +86,7 @@ public class RTStatics {
          tymax = (minMax[0][1] - r.origin.y) * divy;
       }
 
-      if ((txmin > tymax) || (tymin > txmax)) {
+      if (txmin > tymax || tymin > txmax) {
          return false;
       }
 
@@ -104,7 +106,7 @@ public class RTStatics {
          tzmax = (minMax[0][2] - r.origin.z) * divz;
       }
 
-      if ((txmin > tzmax) || (tzmin > txmax)) {
+      if (txmin > tzmax || tzmin > txmax) {
          return false;
       }
 
@@ -116,7 +118,7 @@ public class RTStatics {
          txmax = tzmax;
       }
 
-      return (txmin < RTStatics.farPlane) && (txmax > RTStatics.nearPlane);
+      return txmin < RTStatics.farPlane && txmax > RTStatics.nearPlane;
    }
 
    /**
@@ -248,5 +250,18 @@ public class RTStatics {
       quat.set(new AxisAngle4f(axis, (float) Math.toRadians(angle)));
 
       return quat;
+   }
+
+   public static Color computeColorAverage(final Color[] colors) {
+      float r = 0, g = 0, b = 0;
+
+      for (final Color color : colors) {
+         final float[] c = color.getColorComponents(new float[3]);
+         r += c[0];
+         g += c[1];
+         b += c[2];
+      }
+
+      return new Color(r / colors.length, g / colors.length, b / colors.length, 1f);
    }
 }

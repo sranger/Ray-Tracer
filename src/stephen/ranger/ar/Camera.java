@@ -26,7 +26,7 @@ public class Camera {
    public final BoundingVolume[] objects;
    public final LightingModel lightingModel;
    public final Light light;
-   public final int samples;
+   public final int multiSamples, brdfSamples;
    public final Vector3f origin;
    public final float[] orientation;
    public final float nearPlaneDistance;
@@ -35,26 +35,27 @@ public class Camera {
    public final BufferedImage image;
    public final Set<ActionListener> listeners = new HashSet<ActionListener>();
 
-   public Camera(final Scene scene, final int samples, final float nearPlane, final int screenWidth, final int screenHeight) {
-      this.objects = scene.objects;
-      this.lightingModel = scene.lightingModel;
-      this.light = scene.light;
-      this.samples = samples;
-      this.orientation = scene.cameraOrientation;
-      this.nearPlaneDistance = nearPlane;
+   public Camera(final Scene scene, final int multiSamples, final int brdfSamples, final float nearPlane, final int screenWidth, final int screenHeight) {
+      objects = scene.objects;
+      lightingModel = scene.lightingModel;
+      light = scene.light;
+      this.multiSamples = multiSamples;
+      this.brdfSamples = brdfSamples;
+      orientation = scene.cameraOrientation;
+      nearPlaneDistance = nearPlane;
       this.screenWidth = screenWidth;
       this.screenHeight = screenHeight;
-      this.viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * this.nearPlaneDistance;
-      this.viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * this.nearPlaneDistance;
+      viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * nearPlaneDistance;
+      viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * nearPlaneDistance;
 
-      this.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
+      image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
 
-      this.rotation = new Matrix4f();
-      this.rotation.set(RTStatics.initializeQuat4f(this.orientation));
+      rotation = new Matrix4f();
+      rotation.set(RTStatics.initializeQuat4f(orientation));
 
       final float[][] minMax = new float[][] { { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE }, { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE } };
 
-      for (final BoundingVolume object : this.objects) {
+      for (final BoundingVolume object : objects) {
          final float[][] objMinMax = object.getMinMax();
          minMax[0][0] = Math.min(minMax[0][0], objMinMax[0][0]);
          minMax[0][1] = Math.min(minMax[0][1], objMinMax[0][1]);
@@ -72,50 +73,48 @@ public class Camera {
       final float centerY = height / 2f + minMax[0][1];
       final float centerZ = depth / 2f + minMax[0][2];
       final float distance = width / 2f / (float) Math.tan(Math.toRadians(scene.fov));
-      this.origin = new Vector3f(centerX, centerY, centerZ + distance);
+      origin = new Vector3f(centerX, centerY, centerZ + distance);
 
-      this.rotation.transform(this.origin);
-      final Vector3f viewportDirection = new Vector3f(0, 0, -this.nearPlaneDistance);
-      this.rotation.transform(viewportDirection);
+      rotation.transform(origin);
+      final Vector3f viewportDirection = new Vector3f(0, 0, -nearPlaneDistance);
+      rotation.transform(viewportDirection);
 
-      System.out.println("camera location:  " + this.origin);
+      System.out.println("camera location:  " + origin);
       System.out.println("camera direction: " + viewportDirection);
 
-      this.lightingModel.setCameraPosition(new float[] { centerX, centerY, centerZ + distance });
+      lightingModel.setCameraPosition(new float[] { centerX, centerY, centerZ + distance });
    }
 
    public void setPixel(final int x, final int y, final Color color) {
-      this.image.setRGB(x, y, color.getRGB());
+      image.setRGB(x, y, color.getRGB());
    }
 
    public BufferedImage getImage() {
-      return this.image;
+      return image;
    }
 
    public void createImage() {
       new Thread() {
          @Override
          public void run() {
-            final float xStart = -(Camera.this.viewportWidth / 2.0f);
-            final float yStart = Camera.this.viewportHeight / 2.0f;
-            final float xInc = Camera.this.viewportWidth / Camera.this.screenWidth;
-            final float yInc = Camera.this.viewportHeight / Camera.this.screenHeight;
+            final float xStart = -(viewportWidth / 2.0f);
+            final float yStart = viewportHeight / 2.0f;
+            final float xInc = viewportWidth / screenWidth;
+            final float yInc = viewportHeight / screenHeight;
             final long startTime = System.nanoTime();
 
             final List<int[]> nodes = new ArrayList<int[]>();
 
-            for (int x = 0; x < Camera.this.image.getWidth(); x = x + nodeSize) {
-               for (int y = 0; y < Camera.this.image.getHeight(); y = y + nodeSize) {
-                  nodes.add(new int[] { x, y, (x + nodeSize > Camera.this.image.getWidth()) ? Camera.this.image.getWidth() - x : nodeSize,
-                        (y + nodeSize > Camera.this.image.getHeight()) ? Camera.this.image.getHeight() - y : nodeSize });
+            for (int x = 0; x < image.getWidth(); x = x + nodeSize) {
+               for (int y = 0; y < image.getHeight(); y = y + nodeSize) {
+                  nodes.add(new int[] { x, y, x + nodeSize > image.getWidth() ? image.getWidth() - x : nodeSize, y + nodeSize > image.getHeight() ? image.getHeight() - y : nodeSize });
                }
             }
 
             int temp = Runtime.getRuntime().availableProcessors();
-            temp = Math.max(1, temp - 1);
+            temp = Math.max(1, temp);
             temp = Math.min(nodes.size(), temp);
             final int cpus = temp;
-
 
             final Set<RenderThread> threads = new HashSet<RenderThread>();
             final ActionListener threadListener = new ActionListener() {
@@ -126,30 +125,30 @@ public class Camera {
                public synchronized void actionPerformed(final ActionEvent event) {
                   threads.remove(event.getSource());
                   final double seconds = Double.parseDouble(event.getActionCommand());
-                  this.totalTime += seconds;
+                  totalTime += seconds;
                   System.out.println("node #" + event.getID() + ": " + seconds + " seconds,  threads running: " + threads.size());
 
-                  for (final ActionListener listener : Camera.this.listeners) {
+                  for (final ActionListener listener : listeners) {
                      listener.actionPerformed(new ActionEvent(this, 2, "update"));
                   }
 
-                  if(this.nodePosition < nodes.size()) {
-                     final int[] node = nodes.get(this.nodePosition);
+                  if (nodePosition < nodes.size()) {
+                     final int[] node = nodes.get(nodePosition);
                      System.out.println("creating node for: " + Arrays.toString(node));
-                     this.nodePosition++;
-                     final RenderThread thread = new RenderThread(Camera.this, this, this.nodePosition, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
+                     nodePosition++;
+                     final RenderThread thread = new RenderThread(Camera.this, this, nodePosition, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
                      threads.add(thread);
                      thread.start();
-                  } else if ((this.nodePosition == nodes.size()) && (threads.size() == 0)) {
+                  } else if (nodePosition == nodes.size() && threads.size() == 0) {
                      final long endTime = System.nanoTime();
 
                      System.out.println("total elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
-                     System.out.println("total cpu time:     " + this.totalTime + " seconds");
+                     System.out.println("total cpu time:     " + totalTime + " seconds");
 
-                     for (final ActionListener listener : Camera.this.listeners) {
+                     for (final ActionListener listener : listeners) {
                         listener.actionPerformed(new ActionEvent(this, 1, "finished"));
                      }
-                     Camera.this.listeners.clear();
+                     listeners.clear();
                   }
                }
             };
@@ -171,7 +170,7 @@ public class Camera {
       try {
          if (output.createNewFile() || output.canWrite()) {
             final String[] split = outputFile.split("\\.");
-            ImageIO.write(this.image, split[split.length - 1], output);
+            ImageIO.write(image, split[split.length - 1], output);
             System.out.println("Image saved to " + outputFile + " successfully");
          }
       } catch (final Exception e) {
@@ -180,6 +179,6 @@ public class Camera {
    }
 
    public void addActionListener(final ActionListener actionListener) {
-      this.listeners.add(actionListener);
+      listeners.add(actionListener);
    }
 }
