@@ -10,7 +10,7 @@ public class RTStatics {
    public static final float EPSILON = 1e-15f;
 
    public static final float nearPlane = 0.01f;
-   public static final float farPlane = 30.0f;
+   public static final float farPlane = 3000.0f;
 
    public static final int MAX_CHILDREN = 5;
 

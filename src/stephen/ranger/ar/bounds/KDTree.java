@@ -23,7 +23,7 @@ public class KDTree extends BoundingVolume {
       }
 
       public SeparationAxis getNextAxis() {
-         return equals(X) ? Y : equals(Y) ? Z : X;
+         return this.equals(X) ? Y : this.equals(Y) ? Z : X;
       }
    }
 
@@ -33,6 +33,7 @@ public class KDTree extends BoundingVolume {
    private final float[][] normals;
    private final int[][] indices;
    private final TriangleMesh parentMesh;
+   private float shadowDistance = RTStatics.EPSILON;
 
    private final ColorInformation colorInfo;
 
@@ -43,34 +44,36 @@ public class KDTree extends BoundingVolume {
       this.indices = indices;
       this.colorInfo = colorInfo;
 
-      minMax[0] = new float[] { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE };
-      minMax[1] = new float[] { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE };
+      this.minMax[0] = new float[] { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE };
+      this.minMax[1] = new float[] { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE };
 
       for (final float[] vertice : vertices) {
-         minMax[0][0] = Math.min(vertice[0], minMax[0][0]);
-         minMax[1][0] = Math.max(vertice[0], minMax[1][0]);
+         this.minMax[0][0] = Math.min(vertice[0], this.minMax[0][0]);
+         this.minMax[1][0] = Math.max(vertice[0], this.minMax[1][0]);
 
-         minMax[0][1] = Math.min(vertice[1], minMax[0][1]);
-         minMax[1][1] = Math.max(vertice[1], minMax[1][1]);
+         this.minMax[0][1] = Math.min(vertice[1], this.minMax[0][1]);
+         this.minMax[1][1] = Math.max(vertice[1], this.minMax[1][1]);
 
-         minMax[0][2] = Math.min(vertice[2], minMax[0][2]);
-         minMax[1][2] = Math.max(vertice[2], minMax[1][2]);
+         this.minMax[0][2] = Math.min(vertice[2], this.minMax[0][2]);
+         this.minMax[1][2] = Math.max(vertice[2], this.minMax[1][2]);
       }
+
+      this.shadowDistance = Math.max(this.minMax[1][0] - this.minMax[0][0], Math.max(this.minMax[1][1] - this.minMax[0][1], this.minMax[1][2] - this.minMax[0][2])) / 2000f;
 
       System.out.println("creating KD Tree...");
       final long startTime = System.nanoTime();
-      rootNode = new KDNode(parentMesh, this.vertices, this.normals, this.indices, minMax, SeparationAxis.X, 0, colorInfo);
+      this.rootNode = new KDNode(parentMesh, this.vertices, this.normals, this.indices, this.minMax, SeparationAxis.X, 0, colorInfo, this.shadowDistance);
       final long endTime = System.nanoTime();
 
-      System.out.println("min/max: " + Arrays.toString(minMax[0]) + ", " + Arrays.toString(minMax[1]));
+      System.out.println("min/max: " + Arrays.toString(this.minMax[0]) + ", " + Arrays.toString(this.minMax[1]));
 
       System.out.println("KD Tree computation duration: " + (endTime - startTime) / 1000000000. + " seconds");
    }
 
    @Override
    public IntersectionInformation getChildIntersection(final Ray ray) {
-      if (intersects(ray)) {
-         return rootNode.getChildIntersection(ray);
+      if (this.intersects(ray)) {
+         return this.rootNode.getChildIntersection(ray);
       } else {
          return null;
       }
@@ -78,21 +81,21 @@ public class KDTree extends BoundingVolume {
 
    @Override
    public boolean intersects(final Ray ray) {
-      return RTStatics.aabbIntersection(ray, getMinMax());
+      return RTStatics.aabbIntersection(ray, this.getMinMax());
    }
 
    @Override
    public float[][] getMinMax() {
-      return minMax;
+      return this.minMax;
    }
 
    @Override
    public Color getColor(final IntersectionInformation info) {
-      return colorInfo.diffuse;
+      return this.colorInfo.diffuse;
    }
 
    @Override
    public ColorInformation getColorInformation(final IntersectionInformation info) {
-      return colorInfo;
+      return this.colorInfo;
    }
 }

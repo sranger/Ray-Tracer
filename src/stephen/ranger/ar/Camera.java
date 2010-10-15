@@ -5,8 +5,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Random;
+import java.util.List;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -18,8 +20,9 @@ import stephen.ranger.ar.lighting.Light;
 import stephen.ranger.ar.lighting.LightingModel;
 
 public class Camera {
-   private final Matrix4f rotation;
+   private static final int nodeSize = 128;
 
+   public final Matrix4f rotation;
    public final BoundingVolume[] objects;
    public final LightingModel lightingModel;
    public final Light light;
@@ -29,32 +32,29 @@ public class Camera {
    public final float nearPlaneDistance;
    public final float viewportWidth, viewportHeight;
    public final int screenWidth, screenHeight;
+   public final BufferedImage image;
+   public final Set<ActionListener> listeners = new HashSet<ActionListener>();
 
-   private final BufferedImage image;
-
-   private final Set<ActionListener> listeners = new HashSet<ActionListener>();
-
-   public Camera(final BoundingVolume[] objects, final LightingModel lightingModel, final Light light, final int samples, final float nearPlane, final int screenWidth, final int screenHeight,
-         final float fov) {
-      this.objects = objects;
-      this.lightingModel = lightingModel;
-      this.light = light;
+   public Camera(final Scene scene, final int samples, final float nearPlane, final int screenWidth, final int screenHeight) {
+      this.objects = scene.objects;
+      this.lightingModel = scene.lightingModel;
+      this.light = scene.light;
       this.samples = samples;
-      orientation = new float[] { 0, 0, 0 };
-      nearPlaneDistance = nearPlane;
+      this.orientation = scene.cameraOrientation;
+      this.nearPlaneDistance = nearPlane;
       this.screenWidth = screenWidth;
       this.screenHeight = screenHeight;
-      viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * nearPlaneDistance;
-      viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * nearPlaneDistance;
+      this.viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * this.nearPlaneDistance;
+      this.viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * this.nearPlaneDistance;
 
-      image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
+      this.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
 
-      rotation = new Matrix4f();
-      rotation.set(RTStatics.initializeQuat4f(orientation));
+      this.rotation = new Matrix4f();
+      this.rotation.set(RTStatics.initializeQuat4f(this.orientation));
 
       final float[][] minMax = new float[][] { { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE }, { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE } };
 
-      for (final BoundingVolume object : objects) {
+      for (final BoundingVolume object : this.objects) {
          final float[][] objMinMax = object.getMinMax();
          minMax[0][0] = Math.min(minMax[0][0], objMinMax[0][0]);
          minMax[0][1] = Math.min(minMax[0][1], objMinMax[0][1]);
@@ -71,140 +71,98 @@ public class Camera {
       final float centerX = width / 2f + minMax[0][0];
       final float centerY = height / 2f + minMax[0][1];
       final float centerZ = depth / 2f + minMax[0][2];
-      final float distance = width / 2f / (float) Math.tan(Math.toRadians(fov));
-      origin = new Vector3f(centerX, centerY, centerZ + distance);
+      final float distance = width / 2f / (float) Math.tan(Math.toRadians(scene.fov));
+      this.origin = new Vector3f(centerX, centerY, centerZ + distance);
+
+      this.rotation.transform(this.origin);
+      final Vector3f viewportDirection = new Vector3f(0, 0, -this.nearPlaneDistance);
+      this.rotation.transform(viewportDirection);
+
+      System.out.println("camera location:  " + this.origin);
+      System.out.println("camera direction: " + viewportDirection);
 
       this.lightingModel.setCameraPosition(new float[] { centerX, centerY, centerZ + distance });
    }
 
    public void setPixel(final int x, final int y, final Color color) {
-      image.setRGB(x, y, color.getRGB());
+      this.image.setRGB(x, y, color.getRGB());
    }
 
    public BufferedImage getImage() {
-      return image;
+      return this.image;
    }
 
    public void createImage() {
       new Thread() {
          @Override
          public void run() {
-            final float xStart = -(viewportWidth / 2.0f);
-            final float yStart = viewportHeight / 2.0f;
-            final float xInc = viewportWidth / screenWidth;
-            final float yInc = viewportHeight / screenHeight;
-            final Random random = new Random();
-
-            final Color[] colors = new Color[samples];
-
-            final Vector3f viewportDirection = new Vector3f();
-            IntersectionInformation closest = null;
-            float centerX = 0, centerY = 0, xmin = 0, ymin = 0;
-
+            final float xStart = -(Camera.this.viewportWidth / 2.0f);
+            final float yStart = Camera.this.viewportHeight / 2.0f;
+            final float xInc = Camera.this.viewportWidth / Camera.this.screenWidth;
+            final float yInc = Camera.this.viewportHeight / Camera.this.screenHeight;
             final long startTime = System.nanoTime();
-            long innerStart = 0;
-            long innerEnd = 0;
 
-            for (int x = 0; x < screenWidth; x++) {
-               if (x % 100 == 0) {
-                  innerStart = System.nanoTime();
-                  System.out.print("lines " + x + " - " + (x + 99) + ": ");
+            final List<int[]> nodes = new ArrayList<int[]>();
+
+            for (int x = 0; x < Camera.this.image.getWidth(); x = x + nodeSize) {
+               for (int y = 0; y < Camera.this.image.getHeight(); y = y + nodeSize) {
+                  nodes.add(new int[] { x, y, (x + nodeSize > Camera.this.image.getWidth()) ? Camera.this.image.getWidth() - x : nodeSize,
+                        (y + nodeSize > Camera.this.image.getHeight()) ? Camera.this.image.getHeight() - y : nodeSize });
                }
+            }
 
-               for (int y = 0; y < screenHeight; y++) {
-                  centerX = xStart + xInc * x;
-                  centerY = yStart - yInc * y;
-                  xmin = centerX - xInc / 2f;
-                  ymin = centerY - yInc / 2f;
+            int temp = Runtime.getRuntime().availableProcessors();
+            temp = Math.max(1, temp - 1);
+            temp = Math.min(nodes.size(), temp);
+            final int cpus = temp;
 
-                  for (int i = 0; i < samples; i++) {
-                     viewportDirection.x = i == 0 ? centerX : random.nextFloat() * xInc + xmin;
-                     viewportDirection.y = i == 0 ? centerY : random.nextFloat() * yInc + ymin;
-                     viewportDirection.z = -nearPlaneDistance;
-                     rotation.transform(viewportDirection);
-                     viewportDirection.normalize();
 
-                     closest = Camera.this.getClosestIntersection(null, origin, viewportDirection);
+            final Set<RenderThread> threads = new HashSet<RenderThread>();
+            final ActionListener threadListener = new ActionListener() {
+               int nodePosition = cpus;
+               double totalTime = 0;
 
-                     if (closest != null) {
-                        colors[i] = lightingModel.getPixelColor(closest);
+               @Override
+               public synchronized void actionPerformed(final ActionEvent event) {
+                  threads.remove(event.getSource());
+                  final double seconds = Double.parseDouble(event.getActionCommand());
+                  this.totalTime += seconds;
+                  System.out.println("node #" + event.getID() + ": " + seconds + " seconds,  threads running: " + threads.size());
 
-                        if (closest != null && closest.intersectionObject.getColorInformation(closest).isMirror) {
-                           final Vector3f V = new Vector3f(closest.intersection);
-                           V.sub(origin);
-                           V.normalize();
-
-                           final IntersectionInformation mirrorInfo = Camera.this
-                                 .getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
-                           final float[] mirrorColor = mirrorInfo == null ? light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo).getColorComponents(
-                                 new float[3]);
-                           final float[] color = colors[i].getColorComponents(new float[3]);
-
-                           colors[i] = new Color(color[0] * mirrorColor[0], color[1] * mirrorColor[1], color[2] * mirrorColor[2]);
-                        } else if (closest.intersectionObject.getColorInformation(closest) instanceof BRDFMaterial) {
-                           final float luminance = BRDFMaterial.getBRDFLuminance(closest, light);
-                           colors[i] = new Color(luminance * colors[i].getRed() / 255f, luminance * colors[i].getGreen() / 255f, luminance * colors[i].getBlue() / 255f);
-                        }
-                     } else {
-                        colors[i] = light.ambient;
-                     }
-                  }
-
-                  Camera.this.setPixel(x, y, Camera.this.computeAverage(colors));
-               }
-
-               if (x % 100 == 99) {
-                  innerEnd = System.nanoTime();
-                  System.out.println("duration: " + (innerEnd - innerStart) / 1000000000. + " seconds");
-
-                  for (final ActionListener listener : listeners) {
+                  for (final ActionListener listener : Camera.this.listeners) {
                      listener.actionPerformed(new ActionEvent(this, 2, "update"));
                   }
+
+                  if(this.nodePosition < nodes.size()) {
+                     final int[] node = nodes.get(this.nodePosition);
+                     System.out.println("creating node for: " + Arrays.toString(node));
+                     this.nodePosition++;
+                     final RenderThread thread = new RenderThread(Camera.this, this, this.nodePosition, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
+                     threads.add(thread);
+                     thread.start();
+                  } else if ((this.nodePosition == nodes.size()) && (threads.size() == 0)) {
+                     final long endTime = System.nanoTime();
+
+                     System.out.println("total elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
+                     System.out.println("total cpu time:     " + this.totalTime + " seconds");
+
+                     for (final ActionListener listener : Camera.this.listeners) {
+                        listener.actionPerformed(new ActionEvent(this, 1, "finished"));
+                     }
+                     Camera.this.listeners.clear();
+                  }
                }
+            };
+
+            for (int i = 0; i < cpus; i++) {
+               final int[] node = nodes.get(i);
+               System.out.println("creating node for: " + Arrays.toString(node));
+               final RenderThread thread = new RenderThread(Camera.this, threadListener, i, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
+               threads.add(thread);
+               thread.start();
             }
-
-            final long endTime = System.nanoTime();
-
-            System.out.println("elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
-
-            for (final ActionListener listener : listeners) {
-               listener.actionPerformed(new ActionEvent(this, 1, "finished"));
-            }
-
-            listeners.clear();
          }
       }.start();
-   }
-
-   private IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
-      final Ray ray = new Ray(origin, direction);
-      IntersectionInformation closest = null;
-      IntersectionInformation temp = null;
-
-      for (final BoundingVolume object : objects) {
-         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
-            temp = object.getChildIntersection(ray);
-
-            if (temp != null && temp.w > RTStatics.EPSILON) {
-               closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
-            }
-         }
-      }
-
-      return closest;
-   }
-
-   private Color computeAverage(final Color[] colors) {
-      float r = 0, g = 0, b = 0;
-
-      for (final Color color : colors) {
-         final float[] c = color.getColorComponents(new float[3]);
-         r += c[0];
-         g += c[1];
-         b += c[2];
-      }
-
-      return new Color(r / colors.length, g / colors.length, b / colors.length, 1f);
    }
 
    public void writeOutputFile(final String outputFile) {
@@ -213,7 +171,7 @@ public class Camera {
       try {
          if (output.createNewFile() || output.canWrite()) {
             final String[] split = outputFile.split("\\.");
-            ImageIO.write(image, split[split.length - 1], output);
+            ImageIO.write(this.image, split[split.length - 1], output);
             System.out.println("Image saved to " + outputFile + " successfully");
          }
       } catch (final Exception e) {
@@ -222,6 +180,6 @@ public class Camera {
    }
 
    public void addActionListener(final ActionListener actionListener) {
-      listeners.add(actionListener);
+      this.listeners.add(actionListener);
    }
 }

@@ -24,9 +24,10 @@ public class KDNode extends BoundingVolume {
    private final float[][] normals;
    private final int[][] indices;
    private final TriangleMesh parentMesh;
+   private final float shadowDistance;
 
    public KDNode(final TriangleMesh parentMesh, final float[][] vertices, final float[][] normals, final int[][] indices, final float[][] minMax, final SeparationAxis axis, final int depth,
-         final ColorInformation colorInfo) {
+         final ColorInformation colorInfo, final float shadowDistance) {
       this.axis = axis;
       this.minMax = minMax;
       this.depth = depth;
@@ -34,6 +35,7 @@ public class KDNode extends BoundingVolume {
       this.normals = normals;
       this.indices = indices;
       this.parentMesh = parentMesh;
+      this.shadowDistance = shadowDistance;
 
       if ((depth < KDTree.MAX_DEPTH) && (indices.length > RTStatics.MAX_CHILDREN)) {
          float median;
@@ -69,7 +71,7 @@ public class KDNode extends BoundingVolume {
          if (leftChildren.size() > 0) {
             final int[][] leftChildrenFaces = leftChildren.toArray(new int[leftChildren.size()][3]);
             RTStatics.getMinMax(vertices, leftChildrenFaces, leftMinMax);
-            this.left = new KDNode(parentMesh, vertices, normals, leftChildrenFaces, leftMinMax, axis.getNextAxis(), depth + 1, colorInfo);
+            this.left = new KDNode(parentMesh, vertices, normals, leftChildrenFaces, leftMinMax, axis.getNextAxis(), depth + 1, colorInfo, shadowDistance);
          } else {
             this.left = null;
          }
@@ -77,7 +79,7 @@ public class KDNode extends BoundingVolume {
          if (rightChildren.size() > 0) {
             final int[][] rightChildrenFaces = rightChildren.toArray(new int[rightChildren.size()][3]);
             RTStatics.getMinMax(vertices, rightChildrenFaces, rightMinMax);
-            this.right = new KDNode(parentMesh, vertices, normals, rightChildrenFaces, rightMinMax, axis.getNextAxis(), depth + 1, colorInfo);
+            this.right = new KDNode(parentMesh, vertices, normals, rightChildrenFaces, rightMinMax, axis.getNextAxis(), depth + 1, colorInfo, shadowDistance);
          } else {
             this.right = null;
          }
@@ -113,7 +115,7 @@ public class KDNode extends BoundingVolume {
             if (RTStatics.aabbIntersection(ray, childMinMax)) {
                temp = Triangle.intersectsTriangle(ray.origin, ray.direction, this.vertices, this.normals, face);
 
-               if ((temp != null) && (temp[6] > RTStatics.EPSILON) && ((closest == null) || (temp[6] < closest[6]))) {
+               if ((temp != null) && (temp[6] > this.shadowDistance) && ((closest == null) || (temp[6] < closest[6]))) {
                   closest = temp;
                }
             }
