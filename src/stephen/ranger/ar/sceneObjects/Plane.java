@@ -27,9 +27,14 @@ public class Plane extends SceneObject {
    public final int verticalBoxes = 25;
 
    private final Color negDiffuse;
+   private final boolean useCheckeredMaterial;
+   private final Vector3f[] corners;
 
-   public Plane(Vector3f[] corners, final ColorInformation colorInfo) {
+   public Plane(Vector3f[] corners, final ColorInformation colorInfo, final boolean useCheckeredMaterial) {
       super(colorInfo);
+
+      this.corners = corners;
+      this.useCheckeredMaterial = useCheckeredMaterial;
 
       if (corners.length < 3) {
          throw new InvalidParameterException("The Vector3f array of corner values must contain three or more vertices that denote the bounds of the given plane.");
@@ -63,12 +68,12 @@ public class Plane extends SceneObject {
          corners[3] = new Vector3f(corners[2]);
       }
 
-      minX = Math.min(corners[0].x, Math.min(corners[1].x, Math.min(corners[2].x, corners[3].x))) - RTStatics.EPSILON;
-      maxX = Math.max(corners[0].x, Math.max(corners[1].x, Math.max(corners[2].x, corners[3].x))) + RTStatics.EPSILON;
-      minY = Math.min(corners[0].y, Math.min(corners[1].y, Math.min(corners[2].y, corners[3].y))) - RTStatics.EPSILON;
-      maxY = Math.max(corners[0].y, Math.max(corners[1].y, Math.max(corners[2].y, corners[3].y))) + RTStatics.EPSILON;
-      minZ = Math.min(corners[0].z, Math.min(corners[1].z, Math.min(corners[2].z, corners[3].z))) - RTStatics.EPSILON;
-      maxZ = Math.max(corners[0].z, Math.max(corners[1].z, Math.max(corners[2].z, corners[3].z))) + RTStatics.EPSILON;
+      minX = Math.min(corners[0].x, Math.min(corners[1].x, Math.min(corners[2].x, corners[3].x)));
+      maxX = Math.max(corners[0].x, Math.max(corners[1].x, Math.max(corners[2].x, corners[3].x)));
+      minY = Math.min(corners[0].y, Math.min(corners[1].y, Math.min(corners[2].y, corners[3].y)));
+      maxY = Math.max(corners[0].y, Math.max(corners[1].y, Math.max(corners[2].y, corners[3].y)));
+      minZ = Math.min(corners[0].z, Math.min(corners[1].z, Math.min(corners[2].z, corners[3].z)));
+      maxZ = Math.max(corners[0].z, Math.max(corners[1].z, Math.max(corners[2].z, corners[3].z)));
 
       if (maxX - minX < maxY - minY && maxX - minX < maxZ - minZ) {
          width = RTStatics.getDistance(new float[] { minX, minY, minZ }, new float[] { minX, minY, maxZ });
@@ -83,12 +88,13 @@ public class Plane extends SceneObject {
 
       negDiffuse = new Color(255 - colorInfo.diffuse.getRed(), 255 - colorInfo.diffuse.getGreen(), 255 - colorInfo.diffuse.getBlue());
 
-      System.out.println("plane bounds: " + minX + ", " + maxX + "  " + minY + ", " + maxY + "  " + minZ + ", " + maxZ);
+      System.out.println("\nplane bounds: x = (" + minX + ", " + maxX + ")  y = (" + minY + ", " + maxY + ")  z = (" + minZ + ", " + maxZ + ")");
+      System.out.println("plane normal: " + normal);
       setBoundingVolume(new AxisAlignedBoundingBox(this, minX, minY, minZ, maxX, maxY, maxZ));
    }
 
    public Plane() {
-      this(new Vector3f[] { new Vector3f(-1, 0, -1), new Vector3f(-1, 0, 1), new Vector3f(1, 0, -1), new Vector3f(1, 0, 1) }, new ColorInformation());
+      this(new Vector3f[] { new Vector3f(-1, 0, -1), new Vector3f(-1, 0, 1), new Vector3f(1, 0, -1), new Vector3f(1, 0, 1) }, new ColorInformation(), true);
    }
 
    /**
@@ -127,10 +133,13 @@ public class Plane extends SceneObject {
             // Pi = [Xi Yi Zi] = [X0 + Xd * t Y0 + Yd * t Z0 + Zd * t]
             final Vector3f pI = new Vector3f(ray.origin.x + rD.x * t, ray.origin.y + rD.y * t, ray.origin.z + rD.z * t);
 
-            if (pI.x >= minX && pI.x <= maxX && pI.y >= minY && pI.y <= maxY && pI.z >= minZ && pI.z <= maxZ) {
+            if (pointInPolygon(pI)) {
                final Vector3f temp = new Vector3f();
                temp.sub(pI, ray.origin);
+
                return new IntersectionInformation(ray, boundingVolume, pI, new Vector3f(planeNormal), temp.length());
+            } else {
+               // outside plane bounds
             }
          } else {
             // intersection behind ray origin; ignore
@@ -144,34 +153,51 @@ public class Plane extends SceneObject {
 
    @Override
    public Color getColor(final Vector3f intersection) {
-      float wD, hD;
-      final float[] intersectionArray = new float[3];
-      intersection.get(intersectionArray);
+      if (useCheckeredMaterial) {
+         float wD, hD;
+         final float[] intersectionArray = new float[3];
+         intersection.get(intersectionArray);
 
-      if (maxX - minX < maxY - minY && maxX - minX < maxZ - minZ) {
-         //z = width, y = height
-         wD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, intersection.y, minZ });
-         hD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, minY, intersection.z });
-      } else if (maxY - minY < maxX - minX && maxY - minY < maxZ - minZ) {
-         // x = width, z = height
-         wD = RTStatics.getDistance(intersectionArray, new float[] { minX, intersection.y, intersection.z });
-         hD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, intersection.y, minZ });
+         if (maxX - minX < maxY - minY && maxX - minX < maxZ - minZ) {
+            // z = width, y = height
+            wD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, intersection.y, minZ });
+            hD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, minY, intersection.z });
+         } else if (maxY - minY < maxX - minX && maxY - minY < maxZ - minZ) {
+            // x = width, z = height
+            wD = RTStatics.getDistance(intersectionArray, new float[] { minX, intersection.y, intersection.z });
+            hD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, intersection.y, minZ });
+         } else {
+            // x = width, y = height
+            wD = RTStatics.getDistance(intersectionArray, new float[] { minX, intersection.y, intersection.z });
+            hD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, minY, intersection.z });
+         }
+
+         final float widthStep = width / horizontalBoxes;
+         final float heightStep = height / verticalBoxes;
+
+         final int x = (int) Math.floor(wD / widthStep);
+         final int y = (int) Math.floor(hD / heightStep);
+
+         if (x % 2 == 0 && y % 2 == 0 || x % 2 != 0 && y % 2 != 0) {
+            return colorInfo.diffuse;
+         } else {
+            return negDiffuse;
+         }
       } else {
-         // x = width, y = height
-         wD = RTStatics.getDistance(intersectionArray, new float[] { minX, intersection.y, intersection.z });
-         hD = RTStatics.getDistance(intersectionArray, new float[] { intersection.x, minY, intersection.z });
+         return super.getColor(intersection);
       }
+   }
 
-      final float widthStep = width / horizontalBoxes;
-      final float heightStep = height / verticalBoxes;
+   private boolean pointInPolygon(final Vector3f p) {
+      return p.x >= minX - RTStatics.EPSILON && p.x <= maxX + RTStatics.EPSILON && p.y >= minY - RTStatics.EPSILON && p.y <= maxY + RTStatics.EPSILON && p.z >= minZ - RTStatics.EPSILON
+            && p.z <= maxZ + RTStatics.EPSILON;
 
-      final int x = (int) Math.floor(wD / widthStep);
-      final int y = (int) Math.floor(hD / heightStep);
+      //      final float a = (corners[0].x - p.x) * (corners[1].y - p.y) - (corners[1].x - p.x) * (corners[0].y - p.y);
+      //      final float b = (corners[1].x - p.x) * (corners[2].y - p.y) - (corners[2].x - p.x) * (corners[1].y - p.y);
+      //      final float c = (corners[2].x - p.x) * (corners[3].y - p.y) - (corners[3].x - p.x) * (corners[2].y - p.y);
+      //      final float d = (corners[3].x - p.x) * (corners[0].y - p.y) - (corners[0].x - p.x) * (corners[3].y - p.y);
+      //
+      //      return Math.signum(a) == Math.signum(b) && Math.signum(b) == Math.signum(c) && Math.signum(c) == Math.signum(d);
 
-      if (x % 2 == 0 && y % 2 == 0 || x % 2 != 0 && y % 2 != 0) {
-         return colorInfo.diffuse;
-      } else {
-         return negDiffuse;
-      }
    }
 }

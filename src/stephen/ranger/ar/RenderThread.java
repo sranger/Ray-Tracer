@@ -1,6 +1,5 @@
 package stephen.ranger.ar;
 
-import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Random;
@@ -43,7 +42,7 @@ public class RenderThread extends Thread {
       float centerX, centerY, xmin, ymin;
       final Random random = new Random();
       IntersectionInformation closest = null;
-      final Color[] colors = new Color[camera.multiSamples];
+      final float[][] colors = new float[camera.multiSamples][];
       final long startTime = System.nanoTime();
 
       for (int x = xPos; x < xPos + xSpan; x++) {
@@ -66,11 +65,13 @@ public class RenderThread extends Thread {
                   final ColorInformation colorInfo = closest.intersectionObject.getColorInformation(closest);
 
                   if (colorInfo instanceof BRDFMaterial) {
-                     colors[i] = closest.intersectionObject.getColor(closest);
+                     colors[i] = closest.intersectionObject.getColor(closest).getColorComponents(new float[3]);
                      final float luminance = ((BRDFMaterial) colorInfo).getBRDFLuminocity(closest, camera);
-                     colors[i] = new Color(luminance * colors[i].getRed() / 255f, luminance * colors[i].getGreen() / 255f, luminance * colors[i].getBlue() / 255f);
+                     colors[i][0] = luminance * colors[i][0];
+                     colors[i][1] = luminance * colors[i][1];
+                     colors[i][2] = luminance * colors[i][2];
                   } else {
-                     colors[i] = camera.lightingModel.getPixelColor(closest);
+                     colors[i] = camera.lightingModel.getPixelColor(closest).getColorComponents(new float[3]);
 
                      if (colorInfo.isMirror) {
                         final Vector3f V = new Vector3f(closest.intersection);
@@ -80,13 +81,14 @@ public class RenderThread extends Thread {
                         final IntersectionInformation mirrorInfo = getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
                         final float[] mirrorColor = mirrorInfo == null ? camera.light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo).getColorComponents(
                               new float[3]);
-                        final float[] color = colors[i].getColorComponents(new float[3]);
 
-                        colors[i] = new Color(color[0] * mirrorColor[0], color[1] * mirrorColor[1], color[2] * mirrorColor[2]);
+                        colors[i][0] = colors[i][0] * mirrorColor[0];
+                        colors[i][1] = colors[i][1] * mirrorColor[1];
+                        colors[i][2] = colors[i][2] * mirrorColor[2];
                      }
                   }
                } else {
-                  colors[i] = camera.light.ambient;
+                  colors[i] = camera.light.ambient.getColorComponents(new float[3]);
                }
             }
 

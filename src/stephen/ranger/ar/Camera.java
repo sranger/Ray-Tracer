@@ -1,6 +1,5 @@
 package stephen.ranger.ar;
 
-import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -34,6 +33,9 @@ public class Camera {
    public final int screenWidth, screenHeight;
    public final BufferedImage image;
    public final Set<ActionListener> listeners = new HashSet<ActionListener>();
+   public final float[][][] pixels;
+
+   public float EPSILON = 1e-15f;
 
    public Camera(final Scene scene, final int multiSamples, final int brdfSamples, final float nearPlane, final int screenWidth, final int screenHeight) {
       objects = scene.objects;
@@ -49,6 +51,7 @@ public class Camera {
       viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * nearPlaneDistance;
 
       image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
+      pixels = new float[screenWidth][screenHeight][];
 
       rotation = new Matrix4f();
       rotation.set(RTStatics.initializeQuat4f(orientation));
@@ -78,15 +81,21 @@ public class Camera {
       rotation.transform(origin);
       final Vector3f viewportDirection = new Vector3f(0, 0, -nearPlaneDistance);
       rotation.transform(viewportDirection);
+      viewportDirection.normalize();
+
+      //      if (viewportDirection.z < 0) {
+      //         origin.z = -origin.z;
+      //      }
 
       System.out.println("camera location:  " + origin);
       System.out.println("camera direction: " + viewportDirection);
 
-      lightingModel.setCameraPosition(new float[] { centerX, centerY, centerZ + distance });
+      lightingModel.setCameraPosition(new float[] { origin.x, origin.y, origin.z });
    }
 
-   public void setPixel(final int x, final int y, final Color color) {
-      image.setRGB(x, y, color.getRGB());
+   public void setPixel(final int x, final int y, final float[] color) {
+      pixels[x][y] = color;
+      image.setRGB(x, y, (int) RTStatics.bound(0, 255, (color[0] * 255)) * 65536 + (int) RTStatics.bound(0, 255, (color[1] * 255)) * 256 + (int) RTStatics.bound(0, 255, (color[2] * 255)));
    }
 
    public BufferedImage getImage() {

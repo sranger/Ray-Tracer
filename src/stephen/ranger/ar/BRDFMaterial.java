@@ -43,7 +43,7 @@ public class BRDFMaterial extends ColorInformation {
    public BRDFMaterial(final int materialID, final Color color) {
       super(color);
 
-      material = brdfWeights[materialID];
+      this.material = brdfWeights[materialID];
    }
 
    public float getBRDFLuminocity(final IntersectionInformation info, final Camera camera) {
@@ -67,16 +67,18 @@ public class BRDFMaterial extends ColorInformation {
          out[0] = random.nextFloat() * PBRTMath.F_2_PI;
          out[1] = random.nextFloat() * PBRTMath.F_HALF_PI;
 
-         final float[] remaped = PBRTMath.getRemapedDirection(in, out);
+         final Vector3f tangent = PBRTMath.getNormalTangent(info.normal, info.intersection);
+
+         final float[] remaped = PBRTMath.getRemappedDirection(info.normal, tangent, info.ray.direction);
          float lastMaxDist2 = 0.001f;
 
-         while (ctr < 2 && lastMaxDist2 < 1.5f) {
+         while ((ctr < 2) && (lastMaxDist2 < 1.5f)) {
             for (int j = 0; j < brdfDirections.length; j++) {
                final float dist2 = PBRTMath.getDistance2(remaped, brdfDirections[j]);
 
                if (dist2 < lastMaxDist2) {
                   final float temp = (float) Math.exp(-100.0 * dist2);
-                  luminocity += material[j] * temp;
+                  luminocity += this.material[j] * temp;
                   weight += temp;
                   ctr++;
                }
@@ -152,7 +154,7 @@ public class BRDFMaterial extends ColorInformation {
       final float[][] remapedDirections = new float[directions.length][];
 
       for (int i = 0; i < directions.length; i++) {
-         remapedDirections[i] = PBRTMath.getRemapedDirection(new float[] { directions[i][0], directions[i][1] }, new float[] { directions[i][2], directions[i][3] });
+         remapedDirections[i] = PBRTMath.getRemappedDirection(new float[] { directions[i][0], directions[i][1] }, new float[] { directions[i][2], directions[i][3] });
       }
 
       return remapedDirections;

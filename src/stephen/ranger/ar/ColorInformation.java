@@ -27,6 +27,10 @@ public class ColorInformation {
       this(diffuse, false);
    }
 
+   public ColorInformation(final Color diffuse, final float shininess) {
+      this(Color.black, diffuse, diffuse, diffuse, shininess, false);
+   }
+
    public ColorInformation(final Color diffuse, final boolean isMirror) {
       this(Color.black, diffuse, diffuse, diffuse, 50, isMirror);
    }

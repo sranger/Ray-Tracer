@@ -1,15 +1,15 @@
 package stephen.ranger.ar;
 
-import java.awt.Color;
-
 import javax.vecmath.AxisAngle4f;
 import javax.vecmath.Matrix4f;
 import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
 
+import stephen.ranger.ar.photons.Photon;
+
 public class RTStatics {
 
-   public static final float EPSILON = 1e-15f;
+   public static float EPSILON = 1e-15f;
 
    public static final float nearPlane = 0.01f;
    public static final float farPlane = 3000.0f;
@@ -20,6 +20,22 @@ public class RTStatics {
 
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
+   public static final int MAX_DEPTH = 20;
+
+   public static enum SeparationAxis {
+      X(0), Y(1), Z(2);
+
+      public final int pos;
+
+      private SeparationAxis(final int pos) {
+         this.pos = pos;
+      }
+
+      public SeparationAxis getNextAxis() {
+         return equals(X) ? Y : equals(Y) ? Z : X;
+      }
+   }
+
    private RTStatics() {
       // only static stuff here
    }
@@ -28,19 +44,23 @@ public class RTStatics {
     * r = L - 2 * N * L.dot(N)
     * 
     * @param info
-    * @param L
+    * @param dir
     *           direction to reflect through info.normal
     * @return
     */
-   public static Vector3f getReflectionDirection(final IntersectionInformation info, final Vector3f L) {
+   public static Vector3f getReflectionDirection(final Vector3f n, final Vector3f dir) {
       final Vector3f R = new Vector3f();
-      final Vector3f N = new Vector3f(info.normal);
+      final Vector3f N = new Vector3f(n);
       N.scale(2f);
-      N.scale(L.dot(info.normal));
-      R.sub(L, N);
+      N.scale(dir.dot(n));
+      R.sub(dir, N);
       R.normalize();
 
       return R;
+   }
+
+   public static Vector3f getReflectionDirection(final IntersectionInformation info, final Vector3f dir) {
+      return getReflectionDirection(info.normal, dir);
    }
 
    public static float leastPositive(final float i, final float j) {
@@ -177,6 +197,26 @@ public class RTStatics {
       }
    }
 
+   public static void getMinMax(final Photon[] photons, final float[][] output) {
+      output[0][0] = Float.MAX_VALUE;
+      output[0][1] = Float.MAX_VALUE;
+      output[0][2] = Float.MAX_VALUE;
+
+      output[1][0] = -Float.MAX_VALUE;
+      output[1][1] = -Float.MAX_VALUE;
+      output[1][2] = -Float.MAX_VALUE;
+
+      for (final Photon photon : photons) {
+         output[0][0] = Math.min(output[0][0], photon.location[0]);
+         output[0][1] = Math.min(output[0][1], photon.location[1]);
+         output[0][2] = Math.min(output[0][2], photon.location[2]);
+
+         output[1][0] = Math.max(output[1][0], photon.location[0]);
+         output[1][1] = Math.max(output[1][1], photon.location[1]);
+         output[1][2] = Math.max(output[1][2], photon.location[2]);
+      }
+   }
+
    /**
     * Returns the min/max values of the vertices denoted by the given indices.
     * 
@@ -252,16 +292,19 @@ public class RTStatics {
       return quat;
    }
 
-   public static Color computeColorAverage(final Color[] colors) {
+   public static float[] computeColorAverage(final float[][] colors) {
       float r = 0, g = 0, b = 0;
 
-      for (final Color color : colors) {
-         final float[] c = color.getColorComponents(new float[3]);
-         r += c[0];
-         g += c[1];
-         b += c[2];
+      for (final float[] color : colors) {
+         r += color[0];
+         g += color[1];
+         b += color[2];
       }
 
-      return new Color(r / colors.length, g / colors.length, b / colors.length, 1f);
+      return new float[] { r / colors.length, g / colors.length, b / colors.length };
+   }
+
+   public static double bound(final double min, final double max, final double value) {
+      return Math.min(max, Math.max(min, value));
    }
 }
