@@ -4,6 +4,7 @@ import java.awt.Color;
 
 import javax.vecmath.Vector3f;
 
+import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 
 public class LightingModel {
@@ -13,7 +14,7 @@ public class LightingModel {
 
    }
 
-   public Color getPixelColor(final IntersectionInformation info) {
+   public Color getPixelColor(final IntersectionInformation info, final Camera camera) {
       return info.intersectionObject.getColor(info);
    }
 

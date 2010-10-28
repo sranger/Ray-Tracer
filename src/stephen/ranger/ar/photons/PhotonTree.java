@@ -3,7 +3,9 @@ package stephen.ranger.ar.photons;
 import java.util.ArrayList;
 import java.util.List;
 
-import stephen.ranger.ar.RTStatics.SeparationAxis;
+import stephen.ranger.ar.Camera;
+import stephen.ranger.ar.IntersectionInformation;
+import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.bounds.AxisAlignedBoundingBox;
 import stephen.ranger.ar.bounds.BoundingVolume;
 
@@ -29,13 +31,14 @@ public class PhotonTree {
       }
 
       bv = new AxisAlignedBoundingBox(null, minX, minY, minZ, maxX, maxY, maxZ);
-      node = new PhotonTreeNode(photons, bv.getMinMax(), SeparationAxis.X, 0);
+      node = new PhotonTreeNode(photons, bv.getMinMax(), 0);
+
+      RTStatics.setProgressBarValue(photons.length);
    }
 
-   public Photon[] getPhotonsInRange(final float[] location, final float range) {
+   public Photon[] getPhotonsInRange(final IntersectionInformation info, final float range, final Camera camera) {
       final List<Photon> list = new ArrayList<Photon>();
-
-      list.addAll(node.getPhotonsInRange(location, range));
+      list.addAll(node.getPhotonsInRange(info, range, camera));
 
       return list.toArray(new Photon[list.size()]);
    }

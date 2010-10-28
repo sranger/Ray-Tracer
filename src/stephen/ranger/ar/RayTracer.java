@@ -23,6 +23,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
@@ -33,6 +34,7 @@ import javax.vecmath.Vector3f;
 import stephen.ranger.ar.bounds.BoundingVolume;
 import stephen.ranger.ar.lighting.Light;
 import stephen.ranger.ar.lighting.PhongLightingModel;
+import stephen.ranger.ar.photons.PhotonMaterial;
 import stephen.ranger.ar.sceneObjects.Plane;
 import stephen.ranger.ar.sceneObjects.Sphere;
 import stephen.ranger.ar.sceneObjects.TriangleMesh;
@@ -62,7 +64,7 @@ public class RayTracer {
       final Light light = new Light(new Vector3f(0, 100, 100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.9f, 1.0f));
       final Light light2 = new Light(new Vector3f(0, 100, -100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.9f, 1.0f));
       // final Light cornellLight = new Light(new Vector3f(278, 540, 0.5f), new Color(1f, 0.85f, 0.43f), new Color(1f, 0.85f, 0.43f));
-      final Light cornellLight = new Light(new Vector3f(0, 0, -300), new Color(0.75f, 0.75f, 0.75f), new Color(0.75f, 0.75f, 0.75f));
+      final Light cornellLight = new Light(new Vector3f(0, 250, 0), new Color(0.75f, 0.75f, 0.75f), new Color(0.75f, 0.75f, 0.75f));
 
       if (label.equals(sceneLabels[0])) {
          if (sceneVolumes[0] == null) {
@@ -133,7 +135,7 @@ public class RayTracer {
       final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25), new Vector3f(50, 0, -100) },
             new ColorInformation(Color.yellow), true);
 
-      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(1, Color.white) : new ColorInformation(Color.blue));
+      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(15, Color.white) : new ColorInformation(Color.blue));
       final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(16, Color.cyan) : new ColorInformation(Color.white, true));
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
@@ -149,11 +151,11 @@ public class RayTracer {
     */
    private final BoundingVolume[] getCornellBox(final boolean useSpheres) {
       // final ColorInformation white = new ColorInformation(new Color(0.76f, 0.75f, 0.5f), 0);
-      final ColorInformation white = new ColorInformation(new Color(0.75f, 0.75f, 0.75f), 0);
-      final ColorInformation white2 = new ColorInformation(new Color(0.65f, 0.65f, 0.65f), 0);
-      final ColorInformation red = new ColorInformation(new Color(0.63f, 0.06f, 0.04f), 0);
-      final ColorInformation green = new ColorInformation(new Color(0.15f, 0.48f, 0.09f), 0);
-      final ColorInformation blue = new ColorInformation(new Color(0.392f, 0.584f, 0.93f), 0);
+      final PhotonMaterial white = new PhotonMaterial(new Color(0.75f, 0.75f, 0.75f));
+      final PhotonMaterial white2 = new PhotonMaterial(new Color(0.65f, 0.65f, 0.65f));
+      final PhotonMaterial red = new PhotonMaterial(new Color(0.63f, 0.06f, 0.04f));
+      final PhotonMaterial green = new PhotonMaterial(new Color(0.15f, 0.48f, 0.09f));
+      final PhotonMaterial blue = new PhotonMaterial(new Color(0.392f, 0.584f, 0.93f));
 
       final float[][] box = new float[][] { { -278, -275, -280 }, { 278, 275, 280 } };
 
@@ -363,6 +365,12 @@ public class RayTracer {
 
       System.setOut(new PrintStream(textAreaPrintStream));
 
+      final JProgressBar progressBar = new JProgressBar();
+      progressBar.setStringPainted(true);
+      progressBar.setPreferredSize(new Dimension(300, 30));
+
+      RTStatics.setProgressBar(progressBar);
+
       final JPanel sideParentPanel = new JPanel();
       sideParentPanel.setLayout(new BoxLayout(sideParentPanel, BoxLayout.PAGE_AXIS));
       sideParentPanel.add(sidePanel);
@@ -370,6 +378,7 @@ public class RayTracer {
       sideParentPanel.add(saveButton);
       sideParentPanel.add(Box.createRigidArea(new Dimension(0, 25)));
       sideParentPanel.add(useKDTreeCheckBox);
+      sideParentPanel.add(progressBar);
 
       frame.getContentPane().setLayout(new BorderLayout());
       frame.getContentPane().add(sideParentPanel, BorderLayout.WEST);

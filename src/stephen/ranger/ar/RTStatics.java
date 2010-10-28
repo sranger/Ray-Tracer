@@ -1,5 +1,8 @@
 package stephen.ranger.ar;
 
+import java.text.DecimalFormat;
+
+import javax.swing.JProgressBar;
 import javax.vecmath.AxisAngle4f;
 import javax.vecmath.Matrix4f;
 import javax.vecmath.Quat4f;
@@ -21,6 +24,17 @@ public class RTStatics {
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
    public static final int MAX_DEPTH = 20;
+
+   // photon mapping settings
+   public static final float COLLECTION_RANGE = 10f;
+   public static final float PHOTON_RANGE = 1f;
+   public static final int NUM_REFLECTIONS = 5;
+   public static final int NUM_PHOTONS = 125000;
+   public static final float STARTING_INTENSITY = 0.6f;
+   public static final float PHOTON_FALLOFF = 0.6f;
+   public static final int PHOTON_COLLECTION_GRID_SIZE = 5;
+
+   private static JProgressBar PROGRESS_BAR;
 
    public static enum SeparationAxis {
       X(0), Y(1), Z(2);
@@ -307,4 +321,160 @@ public class RTStatics {
    public static double bound(final double min, final double max, final double value) {
       return Math.min(max, Math.max(min, value));
    }
+
+   private static int min = 0;
+   private static int max = 0;
+   private static long startTime = 0;
+   private static long currentTime = 0;
+   private static String currentString = "";
+   private static final DecimalFormat formatter = new DecimalFormat("0.0");
+
+   public static void setProgressBar(final JProgressBar bar) {
+      PROGRESS_BAR = bar;
+      PROGRESS_BAR.setStringPainted(true);
+      PROGRESS_BAR.setString("");
+   }
+
+   public static void setProgressBarMinMax(final int min, final int max) {
+      if (PROGRESS_BAR != null) {
+         RTStatics.min = min;
+         RTStatics.max = max;
+         startTime = System.nanoTime();
+
+         PROGRESS_BAR.setMinimum(min);
+         PROGRESS_BAR.setMaximum(max);
+      }
+   }
+
+   public static void setProgressBarValue(final int value) {
+      if (PROGRESS_BAR != null) {
+         currentTime = System.nanoTime();
+         PROGRESS_BAR.setValue(value);
+
+         final double percentageDone = value / ((double) max - (double) min);
+         final double seconds = (currentTime - startTime) / 1000000000.;
+         PROGRESS_BAR.setString(currentString + " (ETA: " + formatter.format(seconds / percentageDone - seconds) + " seconds)");
+      }
+   }
+
+   public static void setProgressBarString(final String string) {
+      if (PROGRESS_BAR != null) {
+         currentString = string;
+         PROGRESS_BAR.setString(string);
+      }
+   }
+
+   public static void incrementProgressBarValue(final int inc) {
+      if (PROGRESS_BAR != null) {
+         RTStatics.setProgressBarValue(PROGRESS_BAR.getValue() + inc);
+      }
+   }
+
+   /**
+    * http://jgt.akpeters.com/papers/SmithLyons96/hsv_rgb.html
+    * 
+    * @param rgb
+    * @return
+    */
+   public static float[] convertRGBtoHSV(final float[] rgb) {
+      // RGB are each on [0, 1]. S and V are returned on [0, 1] and H is
+      // returned on [0, 6]. Exception: H is returned UNDEFINED if S==0.
+      final float R = rgb[0], G = rgb[1], B = rgb[2];
+      float v, x, f;
+      int i;
+
+      x = Math.min(R, Math.min(G, B));
+      v = Math.max(R, Math.max(G, B));
+
+      if (v == x) {
+         return new float[] { -1, 0, v };
+      }
+
+      f = R == x ? G - B : G == x ? B - R : R - G;
+      i = R == x ? 3 : G == x ? 5 : 1;
+
+      return new float[] { i - f / (v - x), (v - x) / v, v };
+   }
+
+   public static float[] convertHSVtoRGB(final float[] hsv) {
+      // H is given on [0, 6] or UNDEFINED. S and V are given on [0, 1].
+      // RGB are each returned on [0, 1].
+      final float h = hsv[0], s = hsv[1], v = hsv[2];
+      float m, n, f;
+      int i;
+
+      if (h == -1) {
+         return new float[] { v, v, v };
+      }
+
+      i = (int) Math.floor(h);
+      f = h - i;
+
+      if (i % 2 == 0) {
+         f = 1 - f;
+      }
+
+      m = v * (1 - s);
+      n = v * (1 - s * f);
+
+      switch (i) {
+      case 6:
+      case 0:
+         return new float[] { v, n, m };
+      case 1:
+         return new float[] { n, v, m };
+      case 2:
+         return new float[] { m, v, n };
+      case 3:
+         return new float[] { m, n, v };
+      case 4:
+         return new float[] { n, m, v };
+      case 5:
+         return new float[] { v, m, n };
+      }
+
+      // shouldn't happen
+      return new float[] { 0, 0, 0 };
+   }
+
+   //   public static float[] convertRGBtoHSV(final float[] color) {
+   //      float minRGB, maxRGB, delta;
+   //      float h = 0, s = 0, b = 0;
+   //
+   //      final double H = 0.0;
+   //      minRGB = Math.min(Math.min(color[0], color[1]), color[2]);
+   //      maxRGB = Math.max(Math.max(color[0], color[1]), color[2]);
+   //
+   //      delta = maxRGB - minRGB;
+   //      b = maxRGB;
+   //
+   //      s = maxRGB == 0f ? 0 : 255f * delta / maxRGB;
+   //
+   //      if (s != 0.0) {
+   //         if (color[0] == maxRGB) {
+   //            h = (color[1] - color[2]) / delta;
+   //         } else {
+   //            if (color[1] == maxRGB) {
+   //               h = 2.0f + (color[2] - color[1]) / delta;
+   //            } else {
+   //               if (color[2] == maxRGB) {
+   //                  h = 4.0f + (color[0] - color[1]) / delta;
+   //               }
+   //            }
+   //         }
+   //      } else {
+   //         h = -1.0f;
+   //      }
+   //
+   //      h = h * 60f;
+   //
+   //      if (h < 0f) {
+   //         h = h + 360.0f;
+   //      }
+   //
+   //      return new float[] { h, s * 100f / 255f, b * 100f / 255f };
+   //      //           Hue := h;
+   //      //           Saturnation := s * 100 / 255;
+   //      //           Brightness := b * 100 / 255;
+   //   }
 }

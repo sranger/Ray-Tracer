@@ -1,5 +1,6 @@
 package stephen.ranger.ar;
 
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -17,6 +18,8 @@ import javax.vecmath.Vector3f;
 import stephen.ranger.ar.bounds.BoundingVolume;
 import stephen.ranger.ar.lighting.Light;
 import stephen.ranger.ar.lighting.LightingModel;
+import stephen.ranger.ar.photons.Photon;
+import stephen.ranger.ar.photons.PhotonTree;
 
 public class Camera {
    private static final int nodeSize = 128;
@@ -34,6 +37,8 @@ public class Camera {
    public final BufferedImage image;
    public final Set<ActionListener> listeners = new HashSet<ActionListener>();
    public final float[][][] pixels;
+
+   public PhotonTree photons = null;
 
    public float EPSILON = 1e-15f;
 
@@ -106,6 +111,11 @@ public class Camera {
       new Thread() {
          @Override
          public void run() {
+            final long startTimePhotonMap = System.nanoTime();
+            photons = Camera.this.computePhotonMap();
+            final long endTimePhotonMap = System.nanoTime();
+            System.out.println("Created Photon Map in " + (endTimePhotonMap - startTimePhotonMap) / 1000000000. + " seconds");
+
             final float xStart = -(viewportWidth / 2.0f);
             final float yStart = viewportHeight / 2.0f;
             final float xInc = viewportWidth / screenWidth;
@@ -124,6 +134,10 @@ public class Camera {
             temp = Math.max(1, temp);
             temp = Math.min(nodes.size(), temp);
             final int cpus = temp;
+
+            RTStatics.setProgressBarMinMax(0, image.getWidth() * image.getHeight());
+            RTStatics.setProgressBarValue(0);
+            RTStatics.setProgressBarString("Rendering image...");
 
             final Set<RenderThread> threads = new HashSet<RenderThread>();
             final ActionListener threadListener = new ActionListener() {
@@ -154,6 +168,9 @@ public class Camera {
                      System.out.println("total elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
                      System.out.println("total cpu time:     " + totalTime + " seconds");
 
+                     RTStatics.setProgressBarValue(image.getWidth() * image.getHeight());
+                     RTStatics.setProgressBarString("Rendered image completed!");
+
                      for (final ActionListener listener : listeners) {
                         listener.actionPerformed(new ActionEvent(this, 1, "finished"));
                      }
@@ -173,13 +190,123 @@ public class Camera {
       }.start();
    }
 
-   public void writeOutputFile(final String outputFile) {
-      final File output = new File(outputFile);
+   protected PhotonTree computePhotonMap() {
+      final Vector3f originDirection = new Vector3f();
+      originDirection.sub(light.origin);
+      originDirection.normalize();
+      final List<Photon> photons = new ArrayList<Photon>();
 
+      RTStatics.setProgressBarString("Computing Photon Map...");
+      RTStatics.setProgressBarMinMax(0, RTStatics.NUM_PHOTONS);
+
+      final int axisCount = (int) Math.cbrt(RTStatics.NUM_PHOTONS);
+      final float step = 360f / axisCount;
+      int ctr = 0;
+
+      final Matrix4f rotation = new Matrix4f();
+
+      for (int x = 0; x < axisCount; x++) {
+         for (int y = 0; y < axisCount; y++) {
+            for (int z = 0; z < axisCount; z++) {
+               rotation.set(RTStatics.initializeQuat4f(new float[] { step * x, step * y, step * z }));
+               Vector3f dir = new Vector3f(0, 0, 1);
+               rotation.transform(dir);
+               dir.normalize();
+               Vector3f intersection = new Vector3f(light.origin);
+               float intensity = RTStatics.STARTING_INTENSITY;
+               final float[] emissionColor = light.emission.getColorComponents(new float[3]);
+
+               for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
+                  final IntersectionInformation info = getClosestIntersection(null, intersection, dir);
+                  if (info != null) {
+                     final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
+                     emissionColor[0] *= color[0];
+                     emissionColor[1] *= color[1];
+                     emissionColor[2] *= color[2];
+                     photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity, RTStatics.PHOTON_RANGE));
+                     intensity *= RTStatics.PHOTON_FALLOFF;
+
+                     intersection = info.intersection;
+                     dir = RTStatics.getReflectionDirection(info.normal, dir);
+                  } else {
+                     m = RTStatics.NUM_REFLECTIONS;
+                  }
+
+                  ctr++;
+               }
+            }
+
+            RTStatics.incrementProgressBarValue(axisCount);
+         }
+      }
+
+      System.out.println("num photons: " + ctr);
+
+      RTStatics.setProgressBarValue(RTStatics.NUM_PHOTONS);
+      RTStatics.setProgressBarMinMax(0, photons.size());
+      RTStatics.setProgressBarValue(0);
+      RTStatics.setProgressBarString("Creating Photon Map KD-Tree");
+
+      return new PhotonTree(photons.toArray(new Photon[photons.size()]));
+   }
+
+   public IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
+      final Ray ray = new Ray(origin, direction);
+      IntersectionInformation closest = null;
+      IntersectionInformation temp = null;
+
+      for (final BoundingVolume object : objects) {
+         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
+            temp = object.getChildIntersection(ray);
+
+            if (temp != null && temp.w > RTStatics.EPSILON) {
+               closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
+            }
+         }
+      }
+
+      return closest;
+   }
+
+   public void writeOutputFile(final String outputFile) {
       try {
+         final File output = new File(outputFile);
+
+         final BufferedImage normalizedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+         float min = Float.MAX_VALUE, max = -Float.MAX_VALUE;
+         // Y' = 0.299 r + 0.587 g + 0.114 b
+
+         for (int i = 0; i < 2; i++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+               for (int y = 0; y < image.getHeight(); y++) {
+                  if (i == 0) {
+                     if (pixels[x][y] != null) {
+                        // luma
+                        // min = Math.min(min, 0.299f * pixels[x][y][0] + 0.587f * pixels[x][y][1] + 0.114f * pixels[x][y][2]);
+                        // max = Math.max(max, 0.299f * pixels[x][y][0] + 0.587f * pixels[x][y][1] + 0.114f * pixels[x][y][2]);
+
+                        // brightness
+                        min = Math.min(min, RTStatics.convertRGBtoHSV(pixels[x][y])[2]);
+                        max = Math.max(max, RTStatics.convertRGBtoHSV(pixels[x][y])[2]);
+                     }
+                  } else {
+                     if (pixels[x][y] == null) {
+                        normalizedImage.setRGB(x, y, 0);
+                     } else {
+                        final float[] hsv = RTStatics.convertRGBtoHSV(pixels[x][y]);
+                        hsv[2] = (hsv[2] - min) / (max - min);
+                        final float[] rgb = RTStatics.convertHSVtoRGB(hsv);
+
+                        normalizedImage.setRGB(x, y, new Color(rgb[0], rgb[1], rgb[2]).getRGB());
+                     }
+                  }
+               }
+            }
+         }
+
          if (output.createNewFile() || output.canWrite()) {
             final String[] split = outputFile.split("\\.");
-            ImageIO.write(image, split[split.length - 1], output);
+            ImageIO.write(normalizedImage, split[split.length - 1], output);
             System.out.println("Image saved to " + outputFile + " successfully");
          }
       } catch (final Exception e) {

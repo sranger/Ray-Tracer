@@ -6,8 +6,6 @@ import java.util.Random;
 
 import javax.vecmath.Vector3f;
 
-import stephen.ranger.ar.bounds.BoundingVolume;
-
 public class RenderThread extends Thread {
    private final Camera camera;
    private final ActionListener listener;
@@ -59,7 +57,7 @@ public class RenderThread extends Thread {
                camera.rotation.transform(viewportDirection);
                viewportDirection.normalize();
 
-               closest = getClosestIntersection(null, camera.origin, viewportDirection);
+               closest = camera.getClosestIntersection(null, camera.origin, viewportDirection);
 
                if (closest != null) {
                   final ColorInformation colorInfo = closest.intersectionObject.getColorInformation(closest);
@@ -71,14 +69,14 @@ public class RenderThread extends Thread {
                      colors[i][1] = luminance * colors[i][1];
                      colors[i][2] = luminance * colors[i][2];
                   } else {
-                     colors[i] = camera.lightingModel.getPixelColor(closest).getColorComponents(new float[3]);
+                     colors[i] = camera.lightingModel.getPixelColor(closest, camera).getColorComponents(new float[3]);
 
                      if (colorInfo.isMirror) {
                         final Vector3f V = new Vector3f(closest.intersection);
                         V.sub(camera.origin);
                         V.normalize();
 
-                        final IntersectionInformation mirrorInfo = getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
+                        final IntersectionInformation mirrorInfo = camera.getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
                         final float[] mirrorColor = mirrorInfo == null ? camera.light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo).getColorComponents(
                               new float[3]);
 
@@ -94,27 +92,29 @@ public class RenderThread extends Thread {
 
             camera.setPixel(x, y, RTStatics.computeColorAverage(colors));
          }
+
+         RTStatics.incrementProgressBarValue(ySpan);
       }
 
       final long endTime = System.nanoTime();
       listener.actionPerformed(new ActionEvent(this, nodePosition, Double.toString((endTime - startTime) / 1000000000.)));
    }
 
-   private IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
-      final Ray ray = new Ray(origin, direction);
-      IntersectionInformation closest = null;
-      IntersectionInformation temp = null;
-
-      for (final BoundingVolume object : camera.objects) {
-         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
-            temp = object.getChildIntersection(ray);
-
-            if (temp != null && temp.w > RTStatics.EPSILON) {
-               closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
-            }
-         }
-      }
-
-      return closest;
-   }
+   //   private IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
+   //      final Ray ray = new Ray(origin, direction);
+   //      IntersectionInformation closest = null;
+   //      IntersectionInformation temp = null;
+   //
+   //      for (final BoundingVolume object : camera.objects) {
+   //         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
+   //            temp = object.getChildIntersection(ray);
+   //
+   //            if (temp != null && temp.w > RTStatics.EPSILON) {
+   //               closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
+   //            }
+   //         }
+   //      }
+   //
+   //      return closest;
+   //   }
 }

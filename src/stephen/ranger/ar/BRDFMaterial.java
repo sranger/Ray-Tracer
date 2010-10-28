@@ -7,7 +7,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import javax.vecmath.Vector3f;
 
@@ -47,34 +46,25 @@ public class BRDFMaterial extends ColorInformation {
    }
 
    public float getBRDFLuminocity(final IntersectionInformation info, final Camera camera) {
-      final Random random = new Random();
-      final float[] in = new float[2];
-      final float[] out = new float[2];
       float luminocity = 0f;
       float weight = 0f;
       int ctr = 0;
 
+      final Vector3f negRay = new Vector3f(info.ray.direction);
+      negRay.scale(-1f);
+      negRay.normalize();
       final Vector3f tempDir = new Vector3f();
+      tempDir.sub(camera.light.origin, info.intersection);
+      tempDir.normalize();
+      final Vector3f tangent = PBRTMath.getNormalTangent(info.normal, info.intersection);
 
       for (int i = 0; i < camera.brdfSamples; i++) {
-         tempDir.sub(info.intersection, camera.light.origin);
-         tempDir.normalize();
-
-         in[0] = (float) Math.acos(tempDir.z);
-         in[1] = (float) Math.atan(tempDir.y / tempDir.x);
-
-         // get random view direction in range of [0,2PI], [0,PI/2]
-         out[0] = random.nextFloat() * PBRTMath.F_2_PI;
-         out[1] = random.nextFloat() * PBRTMath.F_HALF_PI;
-
-         final Vector3f tangent = PBRTMath.getNormalTangent(info.normal, info.intersection);
-
-         final float[] remaped = PBRTMath.getRemappedDirection(info.normal, tangent, info.ray.direction);
+         final float[] remapped = PBRTMath.getRemappedDirection(info.normal, tangent, negRay, RTStatics.getReflectionDirection(info.normal, tempDir));
          float lastMaxDist2 = 0.001f;
 
-         while ((ctr < 2) && (lastMaxDist2 < 1.5f)) {
+         while ((ctr < 4) && (lastMaxDist2 < 1.5f)) {
             for (int j = 0; j < brdfDirections.length; j++) {
-               final float dist2 = PBRTMath.getDistance2(remaped, brdfDirections[j]);
+               final float dist2 = PBRTMath.getDistance2(remapped, brdfDirections[j]);
 
                if (dist2 < lastMaxDist2) {
                   final float temp = (float) Math.exp(-100.0 * dist2);

@@ -56,7 +56,7 @@ public class PBRTMath {
       return Math.abs((p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1]) + (p1[2] - p2[2]) * (p1[2] - p2[2]));
    }
 
-   public static float[] getRemappedDirection(final Vector3f normal, final Vector3f tangent, final Vector3f direction) {
+   public static float[] getRemappedDirection(final Vector3f normal, final Vector3f tangent, final Vector3f inDir, final Vector3f outDir) {
       final Vector3f n = new Vector3f(normal);
       final Vector3f t = new Vector3f(tangent); // x
       final Vector3f s = new Vector3f(); // y
@@ -64,10 +64,6 @@ public class PBRTMath {
       t.normalize();
       s.cross(n, t);
       s.normalize();
-      final Vector3f inDir = new Vector3f(direction);
-      inDir.normalize();
-      final Vector3f outDir = RTStatics.getReflectionDirection(n, inDir);
-      outDir.normalize();
 
       final float[] in = PBRTMath.getThetaPhi(n, s, t, inDir);
       final float[] out = PBRTMath.getThetaPhi(n, s, t, outDir);
@@ -101,7 +97,7 @@ public class PBRTMath {
    }
 
    public static float normalizePhi(final float phi) {
-      return phi < 0f ? phi + 2f * (float) Math.PI : phi;
+      return phi < Math.PI / 2f ? phi + 2f * (float) Math.PI : phi;
    }
 
    public static float[] getThetaPhi(final Vector3f n, final Vector3f s, final Vector3f t, final Vector3f dir) {
@@ -123,9 +119,15 @@ public class PBRTMath {
     * @return
     */
    public static Vector3f getNormalTangent(final Vector3f normal, final Vector3f intersection) {
-      final float d = -normal.x * intersection.x - normal.y * intersection.y - normal.z * intersection.z;
-      final Vector3f tangent = new Vector3f(-d / normal.x, -d / normal.y, -d / normal.z);
-      tangent.normalize();
+      final Vector3f randomVector = new Vector3f(0, 1, 0);
+      final float dot = Math.abs(normal.dot(randomVector));
+
+      if (dot > 0.9f) {
+         randomVector.set(-1, 0, 0);
+      }
+
+      final Vector3f tangent = new Vector3f();
+      tangent.cross(normal, randomVector);
 
       return tangent;
    }
