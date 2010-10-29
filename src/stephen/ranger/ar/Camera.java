@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -19,6 +20,7 @@ import stephen.ranger.ar.bounds.BoundingVolume;
 import stephen.ranger.ar.lighting.Light;
 import stephen.ranger.ar.lighting.LightingModel;
 import stephen.ranger.ar.photons.Photon;
+import stephen.ranger.ar.photons.Photon.LightAttribution;
 import stephen.ranger.ar.photons.PhotonTree;
 
 public class Camera {
@@ -35,6 +37,7 @@ public class Camera {
    public final float viewportWidth, viewportHeight;
    public final int screenWidth, screenHeight;
    public final BufferedImage image;
+   public BufferedImage normalizedImage = null;
    public final Set<ActionListener> listeners = new HashSet<ActionListener>();
    public final float[][][] pixels;
 
@@ -43,27 +46,27 @@ public class Camera {
    public float EPSILON = 1e-15f;
 
    public Camera(final Scene scene, final int multiSamples, final int brdfSamples, final float nearPlane, final int screenWidth, final int screenHeight) {
-      objects = scene.objects;
-      lightingModel = scene.lightingModel;
-      light = scene.light;
+      this.objects = scene.objects;
+      this.lightingModel = scene.lightingModel;
+      this.light = scene.light;
       this.multiSamples = multiSamples;
       this.brdfSamples = brdfSamples;
-      orientation = scene.cameraOrientation;
-      nearPlaneDistance = nearPlane;
+      this.orientation = scene.cameraOrientation;
+      this.nearPlaneDistance = nearPlane;
       this.screenWidth = screenWidth;
       this.screenHeight = screenHeight;
-      viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * nearPlaneDistance;
-      viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * nearPlaneDistance;
+      this.viewportWidth = (screenWidth >= screenHeight ? (float) screenWidth / (float) screenHeight : 1.0f) * this.nearPlaneDistance;
+      this.viewportHeight = (screenWidth >= screenHeight ? 1.0f : (float) screenHeight / (float) screenWidth) * this.nearPlaneDistance;
 
-      image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
-      pixels = new float[screenWidth][screenHeight][];
+      this.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
+      this.pixels = new float[screenWidth][screenHeight][];
 
-      rotation = new Matrix4f();
-      rotation.set(RTStatics.initializeQuat4f(orientation));
+      this.rotation = new Matrix4f();
+      this.rotation.set(RTStatics.initializeQuat4f(this.orientation));
 
       final float[][] minMax = new float[][] { { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE }, { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE } };
 
-      for (final BoundingVolume object : objects) {
+      for (final BoundingVolume object : this.objects) {
          final float[][] objMinMax = object.getMinMax();
          minMax[0][0] = Math.min(minMax[0][0], objMinMax[0][0]);
          minMax[0][1] = Math.min(minMax[0][1], objMinMax[0][1]);
@@ -81,30 +84,44 @@ public class Camera {
       final float centerY = height / 2f + minMax[0][1];
       final float centerZ = depth / 2f + minMax[0][2];
       final float distance = width / 2f / (float) Math.tan(Math.toRadians(scene.fov));
-      origin = new Vector3f(centerX, centerY, centerZ + distance);
+      this.origin = new Vector3f(centerX, centerY, centerZ + distance);
 
-      rotation.transform(origin);
-      final Vector3f viewportDirection = new Vector3f(0, 0, -nearPlaneDistance);
-      rotation.transform(viewportDirection);
+      this.rotation.transform(this.origin);
+      final Vector3f viewportDirection = new Vector3f(0, 0, -this.nearPlaneDistance);
+      this.rotation.transform(viewportDirection);
       viewportDirection.normalize();
 
       //      if (viewportDirection.z < 0) {
       //         origin.z = -origin.z;
       //      }
 
-      System.out.println("camera location:  " + origin);
+      System.out.println("camera location:  " + this.origin);
       System.out.println("camera direction: " + viewportDirection);
 
-      lightingModel.setCameraPosition(new float[] { origin.x, origin.y, origin.z });
+      this.lightingModel.setCameraPosition(new float[] { this.origin.x, this.origin.y, this.origin.z });
    }
 
    public void setPixel(final int x, final int y, final float[] color) {
-      pixels[x][y] = color;
-      image.setRGB(x, y, (int) RTStatics.bound(0, 255, (color[0] * 255)) * 65536 + (int) RTStatics.bound(0, 255, (color[1] * 255)) * 256 + (int) RTStatics.bound(0, 255, (color[2] * 255)));
+      if ((color == null) || (Float.valueOf(color[0]).equals(Float.NaN)) || (Float.valueOf(color[1]).equals(Float.NaN)) || (Float.valueOf(color[2]).equals(Float.NaN))) {
+         this.pixels[x][y] = new float[3];
+      } else {
+         this.pixels[x][y] = color;
+      }
+
+      this.image.setRGB(
+            x,
+            y,
+            (int) RTStatics.bound(0, 255, (this.pixels[x][y][0] * 255)) * 65536 + (int) RTStatics.bound(0, 255, (this.pixels[x][y][1] * 255)) * 256
+            + (int) RTStatics.bound(0, 255, (this.pixels[x][y][2] * 255)));
+   }
+
+   public BufferedImage getNormalizedImage() {
+      this.updateNormalizedImage();
+      return this.normalizedImage;
    }
 
    public BufferedImage getImage() {
-      return image;
+      return this.image;
    }
 
    public void createImage() {
@@ -112,21 +129,21 @@ public class Camera {
          @Override
          public void run() {
             final long startTimePhotonMap = System.nanoTime();
-            photons = Camera.this.computePhotonMap();
+            Camera.this.photons = Camera.this.computePhotonMap();
             final long endTimePhotonMap = System.nanoTime();
             System.out.println("Created Photon Map in " + (endTimePhotonMap - startTimePhotonMap) / 1000000000. + " seconds");
 
-            final float xStart = -(viewportWidth / 2.0f);
-            final float yStart = viewportHeight / 2.0f;
-            final float xInc = viewportWidth / screenWidth;
-            final float yInc = viewportHeight / screenHeight;
+            final float xStart = -(Camera.this.viewportWidth / 2.0f);
+            final float yStart = Camera.this.viewportHeight / 2.0f;
+            final float xInc = Camera.this.viewportWidth / Camera.this.screenWidth;
+            final float yInc = Camera.this.viewportHeight / Camera.this.screenHeight;
             final long startTime = System.nanoTime();
 
             final List<int[]> nodes = new ArrayList<int[]>();
 
-            for (int x = 0; x < image.getWidth(); x = x + nodeSize) {
-               for (int y = 0; y < image.getHeight(); y = y + nodeSize) {
-                  nodes.add(new int[] { x, y, x + nodeSize > image.getWidth() ? image.getWidth() - x : nodeSize, y + nodeSize > image.getHeight() ? image.getHeight() - y : nodeSize });
+            for (int x = 0; x < Camera.this.image.getWidth(); x = x + nodeSize) {
+               for (int y = 0; y < Camera.this.image.getHeight(); y = y + nodeSize) {
+                  nodes.add(new int[] { x, y, x + nodeSize > Camera.this.image.getWidth() ? Camera.this.image.getWidth() - x : nodeSize, y + nodeSize > Camera.this.image.getHeight() ? Camera.this.image.getHeight() - y : nodeSize });
                }
             }
 
@@ -135,7 +152,7 @@ public class Camera {
             temp = Math.min(nodes.size(), temp);
             final int cpus = temp;
 
-            RTStatics.setProgressBarMinMax(0, image.getWidth() * image.getHeight());
+            RTStatics.setProgressBarMinMax(0, Camera.this.image.getWidth() * Camera.this.image.getHeight());
             RTStatics.setProgressBarValue(0);
             RTStatics.setProgressBarString("Rendering image...");
 
@@ -148,33 +165,33 @@ public class Camera {
                public synchronized void actionPerformed(final ActionEvent event) {
                   threads.remove(event.getSource());
                   final double seconds = Double.parseDouble(event.getActionCommand());
-                  totalTime += seconds;
+                  this.totalTime += seconds;
                   System.out.println("node #" + event.getID() + ": " + seconds + " seconds,  threads running: " + threads.size());
 
-                  for (final ActionListener listener : listeners) {
+                  for (final ActionListener listener : Camera.this.listeners) {
                      listener.actionPerformed(new ActionEvent(this, 2, "update"));
                   }
 
-                  if (nodePosition < nodes.size()) {
-                     final int[] node = nodes.get(nodePosition);
+                  if (this.nodePosition < nodes.size()) {
+                     final int[] node = nodes.get(this.nodePosition);
                      System.out.println("creating node for: " + Arrays.toString(node));
-                     nodePosition++;
-                     final RenderThread thread = new RenderThread(Camera.this, this, nodePosition, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
+                     this.nodePosition++;
+                     final RenderThread thread = new RenderThread(Camera.this, this, this.nodePosition, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
                      threads.add(thread);
                      thread.start();
-                  } else if (nodePosition == nodes.size() && threads.size() == 0) {
+                  } else if ((this.nodePosition == nodes.size()) && (threads.size() == 0)) {
                      final long endTime = System.nanoTime();
 
                      System.out.println("total elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
-                     System.out.println("total cpu time:     " + totalTime + " seconds");
+                     System.out.println("total cpu time:     " + this.totalTime + " seconds");
 
-                     RTStatics.setProgressBarValue(image.getWidth() * image.getHeight());
+                     RTStatics.setProgressBarValue(Camera.this.image.getWidth() * Camera.this.image.getHeight());
                      RTStatics.setProgressBarString("Rendered image completed!");
 
-                     for (final ActionListener listener : listeners) {
+                     for (final ActionListener listener : Camera.this.listeners) {
                         listener.actionPerformed(new ActionEvent(this, 1, "finished"));
                      }
-                     listeners.clear();
+                     Camera.this.listeners.clear();
                   }
                }
             };
@@ -192,7 +209,7 @@ public class Camera {
 
    protected PhotonTree computePhotonMap() {
       final Vector3f originDirection = new Vector3f();
-      originDirection.sub(light.origin);
+      originDirection.sub(this.light.origin);
       originDirection.normalize();
       final List<Photon> photons = new ArrayList<Photon>();
 
@@ -204,41 +221,87 @@ public class Camera {
       int ctr = 0;
 
       final Matrix4f rotation = new Matrix4f();
+      final Random random = new Random();
 
-      for (int x = 0; x < axisCount; x++) {
-         for (int y = 0; y < axisCount; y++) {
-            for (int z = 0; z < axisCount; z++) {
-               rotation.set(RTStatics.initializeQuat4f(new float[] { step * x, step * y, step * z }));
-               Vector3f dir = new Vector3f(0, 0, 1);
-               rotation.transform(dir);
-               dir.normalize();
-               Vector3f intersection = new Vector3f(light.origin);
-               float intensity = RTStatics.STARTING_INTENSITY;
-               final float[] emissionColor = light.emission.getColorComponents(new float[3]);
+      /**
+       * Random photons
+       */
+      for (int i = 0; i < RTStatics.NUM_PHOTONS; i++) {
+         rotation.set(RTStatics.initializeQuat4f(new float[] { random.nextFloat() * 360f, random.nextFloat() * 360f, random.nextFloat() * 360f }));
+         Vector3f dir = new Vector3f(0, 0, 1);
+         rotation.transform(dir);
+         dir.normalize();
+         Vector3f intersection = new Vector3f(this.light.origin);
+         float intensity = RTStatics.STARTING_INTENSITY;
+         final float[] emissionColor = this.light.emission.getColorComponents(new float[3]);
 
-               for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
-                  final IntersectionInformation info = getClosestIntersection(null, intersection, dir);
-                  if (info != null) {
-                     final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
-                     emissionColor[0] *= color[0];
-                     emissionColor[1] *= color[1];
-                     emissionColor[2] *= color[2];
-                     photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity, RTStatics.PHOTON_RANGE));
-                     intensity *= RTStatics.PHOTON_FALLOFF;
+         for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
+            final float chance = random.nextFloat();
+            final LightAttribution value = (chance < 0.33f) ? LightAttribution.DIFFUSE : (chance < 0.67f) ? LightAttribution.SPECULAR : null;
 
-                     intersection = info.intersection;
-                     dir = RTStatics.getReflectionDirection(info.normal, dir);
-                  } else {
-                     m = RTStatics.NUM_REFLECTIONS;
-                  }
+            if (value != null) {
+               final IntersectionInformation info = this.getClosestIntersection(null, intersection, dir);
+               if (info != null) {
+                  final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
+                  emissionColor[0] *= color[0];
+                  emissionColor[1] *= color[1];
+                  emissionColor[2] *= color[2];
 
-                  ctr++;
+                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity, value));
+                  intensity *= RTStatics.PHOTON_FALLOFF;
+
+                  intersection = info.intersection;
+                  dir = RTStatics.getReflectionDirection(info.normal, dir);
+               } else {
+                  m = RTStatics.NUM_REFLECTIONS;
                }
-            }
 
-            RTStatics.incrementProgressBarValue(axisCount);
+               ctr++;
+            } else {
+               m = RTStatics.NUM_REFLECTIONS;
+            }
          }
       }
+
+      RTStatics.incrementProgressBarValue(axisCount);
+
+      /**
+       * Grid of photons
+       */
+      // for (int x = 0; x < axisCount; x++) {
+      // for (int y = 0; y < axisCount; y++) {
+      // for (int z = 0; z < axisCount; z++) {
+      // rotation.set(RTStatics.initializeQuat4f(new float[] { step * x, step * y, step * z }));
+      // Vector3f dir = new Vector3f(0, 0, 1);
+      // rotation.transform(dir);
+      // dir.normalize();
+      // Vector3f intersection = new Vector3f(this.light.origin);
+      // float intensity = RTStatics.STARTING_INTENSITY;
+      // final float[] emissionColor = this.light.emission.getColorComponents(new float[3]);
+      //
+      // for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
+      // final IntersectionInformation info = this.getClosestIntersection(null, intersection, dir);
+      // if (info != null) {
+      // final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
+      // emissionColor[0] *= color[0];
+      // emissionColor[1] *= color[1];
+      // emissionColor[2] *= color[2];
+      // photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity));
+      // intensity *= RTStatics.PHOTON_FALLOFF;
+      //
+      // intersection = info.intersection;
+      // dir = RTStatics.getReflectionDirection(info.normal, dir);
+      // } else {
+      // m = RTStatics.NUM_REFLECTIONS;
+      // }
+      //
+      // ctr++;
+      // }
+      // }
+      //
+      // RTStatics.incrementProgressBarValue(axisCount);
+      // }
+      // }
 
       System.out.println("num photons: " + ctr);
 
@@ -255,11 +318,11 @@ public class Camera {
       IntersectionInformation closest = null;
       IntersectionInformation temp = null;
 
-      for (final BoundingVolume object : objects) {
-         if ((mirrorObject == null || !mirrorObject.equals(object)) && object.intersects(ray)) {
+      for (final BoundingVolume object : this.objects) {
+         if (((mirrorObject == null) || !mirrorObject.equals(object)) && object.intersects(ray)) {
             temp = object.getChildIntersection(ray);
 
-            if (temp != null && temp.w > RTStatics.EPSILON) {
+            if ((temp != null) && (temp.w > RTStatics.EPSILON)) {
                closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
             }
          }
@@ -268,45 +331,58 @@ public class Camera {
       return closest;
    }
 
-   public void writeOutputFile(final String outputFile) {
-      try {
-         final File output = new File(outputFile);
+   private void updateNormalizedImage() {
+      if ((this.normalizedImage == null) || (this.normalizedImage.getWidth() != this.image.getWidth()) || (this.normalizedImage.getHeight() != this.normalizedImage.getHeight())) {
+         this.normalizedImage = new BufferedImage(this.image.getWidth(), this.image.getHeight(), BufferedImage.TYPE_INT_RGB);
+      }
 
-         final BufferedImage normalizedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
-         float min = Float.MAX_VALUE, max = -Float.MAX_VALUE;
-         // Y' = 0.299 r + 0.587 g + 0.114 b
+      float min = Float.MAX_VALUE, max = -Float.MAX_VALUE;
+      // Y' = 0.299 r + 0.587 g + 0.114 b
 
-         for (int i = 0; i < 2; i++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-               for (int y = 0; y < image.getHeight(); y++) {
-                  if (i == 0) {
-                     if (pixels[x][y] != null) {
-                        // luma
-                        // min = Math.min(min, 0.299f * pixels[x][y][0] + 0.587f * pixels[x][y][1] + 0.114f * pixels[x][y][2]);
-                        // max = Math.max(max, 0.299f * pixels[x][y][0] + 0.587f * pixels[x][y][1] + 0.114f * pixels[x][y][2]);
+      for (int i = 0; i < 2; i++) {
+         for (int x = 0; x < this.normalizedImage.getWidth(); x++) {
+            for (int y = 0; y < this.normalizedImage.getHeight(); y++) {
+               if (i == 0) {
+                  if ((this.pixels[x][y] != null) && !(Float.valueOf(this.pixels[x][y][0]).equals(Float.NaN)) && !(Float.valueOf(this.pixels[x][y][1]).equals(Float.NaN))
+                        && !(Float.valueOf(this.pixels[x][y][2]).equals(Float.NaN))) {
+                     // luma
+                     // min = Math.min(min, 0.299f * pixels[x][y][0] + 0.587f * pixels[x][y][1] + 0.114f * pixels[x][y][2]);
+                     // max = Math.max(max, 0.299f * pixels[x][y][0] + 0.587f * pixels[x][y][1] + 0.114f * pixels[x][y][2]);
 
-                        // brightness
-                        min = Math.min(min, RTStatics.convertRGBtoHSV(pixels[x][y])[2]);
-                        max = Math.max(max, RTStatics.convertRGBtoHSV(pixels[x][y])[2]);
-                     }
+                     // brightness
+                     final float[] hsv = RTStatics.convertRGBtoHSV(this.pixels[x][y]);
+
+                     min = Math.min(min, hsv[2]);
+                     max = Math.max(max, hsv[2]);
+                  }
+               } else {
+                  if ((this.pixels[x][y] == null) || (this.pixels[x][y][0] == Float.NaN) || (this.pixels[x][y][1] == Float.NaN) || (this.pixels[x][y][2] == Float.NaN)) {
+                     this.normalizedImage.setRGB(x, y, 0);
                   } else {
-                     if (pixels[x][y] == null) {
-                        normalizedImage.setRGB(x, y, 0);
-                     } else {
-                        final float[] hsv = RTStatics.convertRGBtoHSV(pixels[x][y]);
-                        hsv[2] = (hsv[2] - min) / (max - min);
-                        final float[] rgb = RTStatics.convertHSVtoRGB(hsv);
+                     final float[] hsv = RTStatics.convertRGBtoHSV(this.pixels[x][y]);
+                     // final float oldV = hsv[2];
+                     hsv[2] = (hsv[2] - min) / (max - min);
+                     final float[] rgb = RTStatics.convertHSVtoRGB(hsv);
 
-                        normalizedImage.setRGB(x, y, new Color(rgb[0], rgb[1], rgb[2]).getRGB());
-                     }
+                     // System.err.println("(" + oldV + " - " + min + ") / " + "(" + max + " - " + min + ") == " + hsv[2]);
+
+                     this.normalizedImage.setRGB(x, y, new Color(rgb[0], rgb[1], rgb[2]).getRGB());
                   }
                }
             }
          }
+      }
+   }
+
+   public void writeOutputFile(final String outputFile) {
+      try {
+         final File output = new File(outputFile);
+
+         this.updateNormalizedImage();
 
          if (output.createNewFile() || output.canWrite()) {
             final String[] split = outputFile.split("\\.");
-            ImageIO.write(normalizedImage, split[split.length - 1], output);
+            ImageIO.write(this.normalizedImage, split[split.length - 1], output);
             System.out.println("Image saved to " + outputFile + " successfully");
          }
       } catch (final Exception e) {
@@ -315,6 +391,6 @@ public class Camera {
    }
 
    public void addActionListener(final ActionListener actionListener) {
-      listeners.add(actionListener);
+      this.listeners.add(actionListener);
    }
 }

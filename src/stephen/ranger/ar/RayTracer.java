@@ -43,7 +43,7 @@ public class RayTracer {
    public static final String baseDir = "C:/Users/sano/Documents/";
    //   public static final String baseDir = "D:/";
    public static final String[] sceneLabels = new String[] { "Whitted Scene", "Whitted Scene (BRDF)", "Stanford Bunny", "Stanford Dragon", "Stanford Buddha", "Stanford Lucy", "XYZ RGB Dragon",
-         "XYZ RGB Thai Statue", "Cornell Box", "Cornell Box (spheres)" };
+      "XYZ RGB Thai Statue", "Cornell Box", "Cornell Box (spheres)" };
    public static BoundingVolume[][] sceneVolumes = new BoundingVolume[sceneLabels.length][];
 
    private Scene currentScene = null;
@@ -51,7 +51,7 @@ public class RayTracer {
    private Camera camera = null;
 
    public RayTracer() {
-      initializeUI();
+      this.initializeUI();
    }
 
    public static void main(final String[] args) {
@@ -68,13 +68,13 @@ public class RayTracer {
 
       if (label.equals(sceneLabels[0])) {
          if (sceneVolumes[0] == null) {
-            sceneVolumes[0] = getWhittedObjects(false);
+            sceneVolumes[0] = this.getWhittedObjects(false);
          }
 
          return new Scene(sceneLabels[0], sceneVolumes[0], light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, sceneVolumes[0]), 35f);
       } else if (label.equals(sceneLabels[1])) {
          if (sceneVolumes[1] == null) {
-            sceneVolumes[1] = getWhittedObjects(true);
+            sceneVolumes[1] = this.getWhittedObjects(true);
          }
 
          return new Scene(sceneLabels[1], sceneVolumes[1], light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, sceneVolumes[1]), 35f);
@@ -116,13 +116,13 @@ public class RayTracer {
          return new Scene(sceneLabels[7], sceneVolumes[7], light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, sceneVolumes[7]), 10f);
       } else if (label.equals(sceneLabels[8])) {
          if (sceneVolumes[8] == null) {
-            sceneVolumes[8] = getCornellBox(false);
+            sceneVolumes[8] = this.getCornellBox(false);
          }
 
          return new Scene(sceneLabels[8], sceneVolumes[8], cornellLight, new float[] { 180, 0, 0 }, new PhongLightingModel(cornellLight, sceneVolumes[8]), 20f);
       } else if (label.equals(sceneLabels[9])) {
          if (sceneVolumes[9] == null) {
-            sceneVolumes[9] = getCornellBox(true);
+            sceneVolumes[9] = this.getCornellBox(true);
          }
 
          return new Scene(sceneLabels[9], sceneVolumes[9], cornellLight, new float[] { 180, 0, 0 }, new PhongLightingModel(cornellLight, sceneVolumes[9]), 20f);
@@ -208,8 +208,8 @@ public class RayTracer {
 
       final JSpinner multiSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 400, 1));
       final JSpinner brdfSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 205, 1));
-      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(512, 1, 10240, 1));
-      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(512, 1, 10240, 1));
+      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(512, 1, 10240, 128));
+      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(512, 1, 10240, 128));
 
       final JComboBox sceneComboBox = new JComboBox(sceneLabels);
       sceneComboBox.setPreferredSize(new Dimension(150, 50));
@@ -222,16 +222,27 @@ public class RayTracer {
          }
       });
 
+      final JCheckBox useNormalizedImageCheckBox = new JCheckBox("Display Normalized Image");
+      useNormalizedImageCheckBox.setSelected(true);
+      useNormalizedImageCheckBox.setPreferredSize(new Dimension(200, 20));
+
       final JLabel iconLabel = new JLabel() {
          @Override
          public void paint(final Graphics g) {
-            if (camera != null) {
-               final BufferedImage image = camera.getImage();
+            if (RayTracer.this.camera != null) {
+               final BufferedImage image = (useNormalizedImageCheckBox.isSelected()) ? RayTracer.this.camera.getNormalizedImage() : RayTracer.this.camera.getImage();
                g.drawImage(image, 0, 0, null);
                g.finalize();
             }
          }
       };
+
+      useNormalizedImageCheckBox.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(final ActionEvent event) {
+            iconLabel.repaint();
+         }
+      });
 
       final JScrollPane imagePane = new JScrollPane(iconLabel);
       imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
@@ -243,6 +254,7 @@ public class RayTracer {
 
       final JCheckBox useKDTreeCheckBox = new JCheckBox("Enable KD-Tree");
       useKDTreeCheckBox.setSelected(true);
+      useKDTreeCheckBox.setPreferredSize(new Dimension(200, 20));
       useKDTreeCheckBox.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(final ActionEvent event) {
@@ -264,9 +276,9 @@ public class RayTracer {
             final ActionListener listener = new ActionListener() {
                @Override
                public void actionPerformed(final ActionEvent event) {
-                  camera = new Camera(currentScene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(),
+                  RayTracer.this.camera = new Camera(RayTracer.this.currentScene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(), RTStatics.nearPlane, (Integer) imageXField.getValue(),
                         (Integer) imageYField.getValue());
-                  camera.addActionListener(new ActionListener() {
+                  RayTracer.this.camera.addActionListener(new ActionListener() {
                      @Override
                      public void actionPerformed(final ActionEvent event) {
                         if (event.getID() == 1) {
@@ -281,7 +293,7 @@ public class RayTracer {
 
                            imagePane.repaint();
                         } else if (event.getID() == 2) {
-                           final BufferedImage image = camera.getImage();
+                           final BufferedImage image = RayTracer.this.camera.getImage();
                            iconLabel.setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
                            iconLabel.revalidate();
 
@@ -290,14 +302,14 @@ public class RayTracer {
                      }
                   });
 
-                  camera.createImage();
+                  RayTracer.this.camera.createImage();
                }
             };
 
             new Thread() {
                @Override
                public void run() {
-                  currentScene = RayTracer.this.getScene(sceneComboBox.getSelectedItem().toString(), useKDTreeCheckBox.isSelected());
+                  RayTracer.this.currentScene = RayTracer.this.getScene(sceneComboBox.getSelectedItem().toString(), useKDTreeCheckBox.isSelected());
                   listener.actionPerformed(new ActionEvent(this, 0, "finished"));
                }
             }.start();
@@ -341,7 +353,7 @@ public class RayTracer {
             if (result == JFileChooser.APPROVE_OPTION) {
                final String path = fileChooser.getSelectedFile().getAbsolutePath();
 
-               camera.writeOutputFile(path.endsWith(".png") || path.endsWith(".jpg") ? path : path + ".png");
+               RayTracer.this.camera.writeOutputFile(path.endsWith(".png") || path.endsWith(".jpg") ? path : path + ".png");
             }
          }
       });
@@ -374,10 +386,12 @@ public class RayTracer {
       final JPanel sideParentPanel = new JPanel();
       sideParentPanel.setLayout(new BoxLayout(sideParentPanel, BoxLayout.PAGE_AXIS));
       sideParentPanel.add(sidePanel);
-      sideParentPanel.add(Box.createRigidArea(new Dimension(0, 25)));
+      sideParentPanel.add(Box.createRigidArea(new Dimension(100, 25)));
       sideParentPanel.add(saveButton);
-      sideParentPanel.add(Box.createRigidArea(new Dimension(0, 25)));
+      sideParentPanel.add(Box.createRigidArea(new Dimension(100, 25)));
       sideParentPanel.add(useKDTreeCheckBox);
+      sideParentPanel.add(useNormalizedImageCheckBox);
+      sideParentPanel.add(Box.createRigidArea(new Dimension(100, 50)));
       sideParentPanel.add(progressBar);
 
       frame.getContentPane().setLayout(new BorderLayout());

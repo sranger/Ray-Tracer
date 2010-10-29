@@ -10,6 +10,10 @@ import stephen.ranger.ar.bounds.AxisAlignedBoundingBox;
 import stephen.ranger.ar.bounds.BoundingVolume;
 
 public class PhotonTree {
+   public static volatile float cumulativeLeafDepth = 0;
+   public static volatile float cumulativeLeafSize = 0;
+   public static volatile int leafCount = 0;
+
    public final Photon[] photons;
    public final PhotonTreeNode node;
    public final BoundingVolume bv;
@@ -30,15 +34,24 @@ public class PhotonTree {
          maxZ = Math.max(photon.location[2], maxZ);
       }
 
-      bv = new AxisAlignedBoundingBox(null, minX, minY, minZ, maxX, maxY, maxZ);
-      node = new PhotonTreeNode(photons, bv.getMinMax(), 0);
+      this.bv = new AxisAlignedBoundingBox(null, minX, minY, minZ, maxX, maxY, maxZ);
+      this.node = new PhotonTreeNode(photons, this.bv.getMinMax(), 0);
+
+      System.out.println("total leaf nodes:   " + PhotonTree.leafCount);
+      System.out.println("average leaf depth: " + PhotonTree.cumulativeLeafDepth / PhotonTree.leafCount);
+      System.out.println("average leaf size:  " + PhotonTree.cumulativeLeafSize / PhotonTree.leafCount);
+
+      PhotonTree.leafCount = 0;
+      PhotonTree.cumulativeLeafDepth = 0;
+      PhotonTree.cumulativeLeafSize = 0;
 
       RTStatics.setProgressBarValue(photons.length);
    }
 
    public Photon[] getPhotonsInRange(final IntersectionInformation info, final float range, final Camera camera) {
       final List<Photon> list = new ArrayList<Photon>();
-      list.addAll(node.getPhotonsInRange(info, range, camera));
+      // list.addAll(this.node.getPhotonsInRange(info, range, camera));
+      list.addAll(this.node.getPhotonsInRange(info.intersection, range, camera));
 
       return list.toArray(new Photon[list.size()]);
    }

@@ -17,21 +17,21 @@ public class RTStatics {
    public static final float nearPlane = 0.01f;
    public static final float farPlane = 3000.0f;
 
-   public static final int MAX_CHILDREN = 5;
+   // KD-Tree settings
+   public static final int MAX_CHILDREN = 10;
+   public static final int MAX_DEPTH = 20;
 
    public static boolean ENABLE_BACKFACE_CULLING = true;
 
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
-   public static final int MAX_DEPTH = 20;
 
    // photon mapping settings
-   public static final float COLLECTION_RANGE = 10f;
-   public static final float PHOTON_RANGE = 1f;
-   public static final int NUM_REFLECTIONS = 5;
-   public static final int NUM_PHOTONS = 125000;
-   public static final float STARTING_INTENSITY = 0.6f;
-   public static final float PHOTON_FALLOFF = 0.6f;
+   public static final float COLLECTION_RANGE = 5f;
+   public static final int NUM_REFLECTIONS = 10;
+   public static final int NUM_PHOTONS = 1000000;
+   public static final float STARTING_INTENSITY = 1000f;
+   public static final float PHOTON_FALLOFF = 0.1f;
    public static final int PHOTON_COLLECTION_GRID_SIZE = 5;
 
    private static JProgressBar PROGRESS_BAR;
@@ -46,7 +46,7 @@ public class RTStatics {
       }
 
       public SeparationAxis getNextAxis() {
-         return equals(X) ? Y : equals(Y) ? Z : X;
+         return this.equals(X) ? Y : this.equals(Y) ? Z : X;
       }
    }
 
@@ -80,11 +80,11 @@ public class RTStatics {
    public static float leastPositive(final float i, final float j) {
       float retVal;
 
-      if (i < 0 && j < 0) {
+      if ((i < 0) && (j < 0)) {
          retVal = -1;
-      } else if (i < 0 && j > 0) {
+      } else if ((i < 0) && (j > 0)) {
          retVal = j;
-      } else if (i > 0 && j < 0) {
+      } else if ((i > 0) && (j < 0)) {
          retVal = i;
       } else {
          if (i < j) {
@@ -120,7 +120,7 @@ public class RTStatics {
          tymax = (minMax[0][1] - r.origin.y) * divy;
       }
 
-      if (txmin > tymax || tymin > txmax) {
+      if ((txmin > tymax) || (tymin > txmax)) {
          return false;
       }
 
@@ -140,7 +140,7 @@ public class RTStatics {
          tzmax = (minMax[0][2] - r.origin.z) * divz;
       }
 
-      if (txmin > tzmax || tzmin > txmax) {
+      if ((txmin > tzmax) || (tzmin > txmax)) {
          return false;
       }
 
@@ -152,7 +152,7 @@ public class RTStatics {
          txmax = tzmax;
       }
 
-      return txmin < RTStatics.farPlane && txmax > RTStatics.nearPlane;
+      return (txmin < RTStatics.farPlane) && (txmax > RTStatics.nearPlane);
    }
 
    /**
@@ -163,7 +163,20 @@ public class RTStatics {
     * @return      The distance between p1 and p2
     */
    public static float getDistance(final float[] p1, final float[] p2) {
-      return (float) Math.sqrt((p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1]) + (p1[2] - p2[2]) * (p1[2] - p2[2]));
+      return (float) Math.sqrt(RTStatics.getDistanceSquared(p1, p2));
+   }
+
+   /**
+    * Returns the squared distance between the two given vertices.
+    * 
+    * @param p1
+    *           Vertex 1
+    * @param p2
+    *           Vertex 2
+    * @return The distance between p1 and p2
+    */
+   public static float getDistanceSquared(final float[] p1, final float[] p2) {
+      return (p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1]) + (p1[2] - p2[2]) * (p1[2] - p2[2]);
    }
 
    /**
@@ -176,7 +189,20 @@ public class RTStatics {
     * @return The distance between p1 and p2
     */
    public static float getDistance(final Vector3f p1, final Vector3f p2) {
-      return (float) Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z));
+      return (float) Math.sqrt(RTStatics.getDistanceSquared(p1, p2));
+   }
+
+   /**
+    * Returns the squared distance between the two given vertices.
+    * 
+    * @param p1
+    *           Vertex 1
+    * @param p2
+    *           Vertex 2
+    * @return The distance between p1 and p2
+    */
+   public static float getDistanceSquared(final Vector3f p1, final Vector3f p2) {
+      return (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z);
    }
 
    /**
@@ -417,24 +443,35 @@ public class RTStatics {
       m = v * (1 - s);
       n = v * (1 - s * f);
 
+      float[] rgb = new float[3];
+
       switch (i) {
-      case 6:
-      case 0:
-         return new float[] { v, n, m };
-      case 1:
-         return new float[] { n, v, m };
-      case 2:
-         return new float[] { m, v, n };
-      case 3:
-         return new float[] { m, n, v };
-      case 4:
-         return new float[] { n, m, v };
-      case 5:
-         return new float[] { v, m, n };
+         case 6:
+         case 0:
+            rgb = new float[] { v, n, m };
+            break;
+         case 1:
+            rgb = new float[] { n, v, m };
+            break;
+         case 2:
+            rgb = new float[] { m, v, n };
+            break;
+         case 3:
+            rgb = new float[] { m, n, v };
+            break;
+         case 4:
+            rgb = new float[] { n, m, v };
+            break;
+         case 5:
+            rgb = new float[] { v, m, n };
+            break;
       }
 
-      // shouldn't happen
-      return new float[] { 0, 0, 0 };
+      rgb[0] = Math.min(1f, Math.max(0f, rgb[0]));
+      rgb[1] = Math.min(1f, Math.max(0f, rgb[1]));
+      rgb[2] = Math.min(1f, Math.max(0f, rgb[2]));
+
+      return rgb;
    }
 
    //   public static float[] convertRGBtoHSV(final float[] color) {

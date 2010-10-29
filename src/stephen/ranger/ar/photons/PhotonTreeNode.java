@@ -23,10 +23,10 @@ public class PhotonTreeNode {
    public PhotonTreeNode(final Photon[] photons, final float[][] minMax, final int depth) {
       this.minMax = minMax;
       this.photons = photons;
-      bv = new AxisAlignedBoundingBox(null, minMax);
+      this.bv = new AxisAlignedBoundingBox(null, minMax);
       SeparationAxis axis = SeparationAxis.X;
 
-      if (photons.length > RTStatics.MAX_CHILDREN && depth < RTStatics.MAX_DEPTH) {
+      if ((photons.length > RTStatics.MAX_CHILDREN) && (depth < RTStatics.MAX_DEPTH)) {
          final List<Photon> leftChildren = new ArrayList<Photon>();
          final List<Photon> rightChildren = new ArrayList<Photon>();
 
@@ -35,10 +35,10 @@ public class PhotonTreeNode {
          final float medianZ = (this.minMax[1][2] - this.minMax[0][2]) / 2f + this.minMax[0][2];
          float median = medianX;
 
-         if (medianY > medianX && medianY > medianZ) {
+         if ((medianY > medianX) && (medianY > medianZ)) {
             axis = SeparationAxis.Y;
             median = medianY;
-         } else if (medianZ > medianY && medianZ > medianX) {
+         } else if ((medianZ > medianY) && (medianZ > medianX)) {
             axis = SeparationAxis.Z;
             median = medianZ;
          }
@@ -63,42 +63,84 @@ public class PhotonTreeNode {
          if (leftChildren.size() > 0) {
             final Photon[] leftPhotons = leftChildren.toArray(new Photon[leftChildren.size()]);
             RTStatics.getMinMax(leftPhotons, leftMinMax);
-            left = new PhotonTreeNode(leftPhotons, leftMinMax, depth + 1);
+            this.left = new PhotonTreeNode(leftPhotons, leftMinMax, depth + 1);
          } else {
-            left = null;
+            this.left = null;
          }
 
          if (rightChildren.size() > 0) {
             final Photon[] rightPhotons = rightChildren.toArray(new Photon[rightChildren.size()]);
             RTStatics.getMinMax(rightPhotons, rightMinMax);
-            right = new PhotonTreeNode(rightPhotons, rightMinMax, depth + 1);
+            this.right = new PhotonTreeNode(rightPhotons, rightMinMax, depth + 1);
          } else {
-            right = null;
+            this.right = null;
          }
       } else {
-         left = null;
-         right = null;
+         this.left = null;
+         this.right = null;
+
+         PhotonTree.leafCount += 1;
+         PhotonTree.cumulativeLeafDepth += depth;
+         PhotonTree.cumulativeLeafSize += photons.length;
 
          RTStatics.incrementProgressBarValue(photons.length);
       }
    }
 
-   public Collection<Photon> getPhotonsInRange(final IntersectionInformation info, final float range, final Camera camera) {
+   public Collection<Photon> getPhotonsInRange(final Vector3f p, final float range, final Camera camera) {
       final List<Photon> list = new ArrayList<Photon>();
 
-      if (left != null || right != null) {
-         if (left != null) {
-            final Collection<Photon> leftMatches = left.getPhotonsInRange(info, range, camera);
+      if ((this.left != null) || (this.right != null)) {
+         if (this.left != null) {
+            final Collection<Photon> leftMatches = this.left.getPhotonsInRange(p, range, camera);
 
-            if (leftMatches != null && leftMatches.size() > 0) {
+            if ((leftMatches != null) && (leftMatches.size() > 0)) {
                list.addAll(leftMatches);
             }
          }
 
-         if (right != null) {
-            final Collection<Photon> rightMatches = right.getPhotonsInRange(info, range, camera);
+         if (this.right != null) {
+            final Collection<Photon> rightMatches = this.right.getPhotonsInRange(p, range, camera);
 
-            if (rightMatches != null && rightMatches.size() > 0) {
+            if ((rightMatches != null) && (rightMatches.size() > 0)) {
+               list.addAll(rightMatches);
+            }
+         }
+      } else {
+         final float[] location = new float[3];
+         p.get(location);
+         final float rangeSquared = range * range;
+
+         for (final Photon photon : this.photons) {
+            if (this.photonAABBIntersection(photon, this.minMax)) {
+               final float distanceSquared = RTStatics.getDistanceSquared(photon.location, location);
+
+               if (distanceSquared - rangeSquared < 0f) {
+                  list.add(photon);
+               }
+            }
+         }
+      }
+
+      return list;
+   }
+
+   public Collection<Photon> getPhotonsInRange(final IntersectionInformation info, final float range, final Camera camera) {
+      final List<Photon> list = new ArrayList<Photon>();
+
+      if ((this.left != null) || (this.right != null)) {
+         if (this.left != null) {
+            final Collection<Photon> leftMatches = this.left.getPhotonsInRange(info, range, camera);
+
+            if ((leftMatches != null) && (leftMatches.size() > 0)) {
+               list.addAll(leftMatches);
+            }
+         }
+
+         if (this.right != null) {
+            final Collection<Photon> rightMatches = this.right.getPhotonsInRange(info, range, camera);
+
+            if ((rightMatches != null) && (rightMatches.size() > 0)) {
                list.addAll(rightMatches);
             }
          }
@@ -106,6 +148,7 @@ public class PhotonTreeNode {
          final Matrix4f rotation = new Matrix4f();
          final float step = 180f / RTStatics.PHOTON_COLLECTION_GRID_SIZE;
          final float[] location = new float[3];
+         final float rangeSquared = range * range;
 
          for (int x = 0; x <= RTStatics.PHOTON_COLLECTION_GRID_SIZE; x++) {
             for (int y = 0; y <= RTStatics.PHOTON_COLLECTION_GRID_SIZE; y++) {
@@ -118,11 +161,11 @@ public class PhotonTreeNode {
 
                if (closest != null) {
                   closest.intersection.get(location);
-                  for (final Photon photon : photons) {
-                     if (photonAABBIntersection(photon, minMax)) {
-                        final float distance = RTStatics.getDistance(photon.location, location);
+                  for (final Photon photon : this.photons) {
+                     if (this.photonAABBIntersection(photon, this.minMax)) {
+                        final float distanceSquared = RTStatics.getDistanceSquared(photon.location, location);
 
-                        if (distance - range - photon.range < 0f) {
+                        if (distanceSquared - rangeSquared < 0f) {
                            list.add(photon);
                         }
                      }
@@ -136,6 +179,53 @@ public class PhotonTreeNode {
    }
 
    /**
+    * From: Advanced global illumination using photon mapping
+    * http://portal.acm.org/citation.cfm?id=1401136
+    * 
+      locate photons( p ) {
+         if ( 2p + 1 < number of photons ) {
+            examine child nodes
+
+            // Compute distance to plane (final just a subtract)
+            delta = signed distance to splitting plane of node n
+
+            if (delta < 0) {
+               // We are left of the plane - search left subtree first
+               locate photons( 2p )
+
+               if ( delta2 < d2 ) {
+                  locate photons( 2p + 1 ) check right subtree
+               }
+            } else {
+               // We are right final of the plane - search right subtree first
+               locate photons( 2p + 1 )
+
+               if ( delta2 < d2 ) {
+                  locate photons( 2p ) check left subtree
+               }
+            }
+         }
+
+         // Compute true squared distance to photon
+         delta= squared distance from photon p to x
+
+         if ( delta2 < d2 ) {
+            // Check if the photon is final close enough?
+            insert photon into final max heap h
+
+            // final Adjust maximum distance final to prune the search
+            d2 = squared distance final to photon in final root node final of h
+         }
+      }
+    */
+   public Collection<Photon> locatePhotons(final float[] p) {
+      final List<Photon> list = new ArrayList<Photon>();
+
+      return list;
+   }
+
+
+   /**
     * http://www.devmaster.net/forums/archive/index.php/t-10324.html
     */
    private boolean photonAABBIntersection(final Photon photon, final float[][] minMax) {
@@ -146,17 +236,17 @@ public class PhotonTreeNode {
       final float maxY = photon.location[1] + photon.intensity;
       final float maxZ = photon.location[2] + photon.intensity;
 
-      if (minMax[0][0] >= minX && minMax[1][0] <= maxX && minMax[0][1] >= minY && minMax[1][1] <= maxY && minMax[0][2] >= minZ && minMax[1][2] <= maxZ) {
+      if ((minMax[0][0] >= minX) && (minMax[1][0] <= maxX) && (minMax[0][1] >= minY) && (minMax[1][1] <= maxY) && (minMax[0][2] >= minZ) && (minMax[1][2] <= maxZ)) {
          return true;
       }
 
-      if (maxX < minMax[0][0] || minX > minMax[1][0]) {
+      if ((maxX < minMax[0][0]) || (minX > minMax[1][0])) {
          return false;
       }
-      if (maxY < minMax[0][1] || minY > minMax[1][1]) {
+      if ((maxY < minMax[0][1]) || (minY > minMax[1][1])) {
          return false;
       }
-      if (maxZ < minMax[0][2] || minZ > minMax[1][2]) {
+      if ((maxZ < minMax[0][2]) || (minZ > minMax[1][2])) {
          return false;
       }
 

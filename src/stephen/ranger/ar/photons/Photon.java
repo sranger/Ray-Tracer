@@ -1,15 +1,24 @@
 package stephen.ranger.ar.photons;
 
 public class Photon {
+   public static enum LightAttribution {
+      DIFFUSE(0), SPECULAR(1);
+      public final int cell;
+
+      private LightAttribution(final int cell) {
+         this.cell = cell;
+      }
+   };
+
    public final float[] color;
    public final float[] location;
    public final float intensity;
-   public final float range;
+   public final LightAttribution value;
 
-   public Photon(final float[] color, final float[] location, final float intensity, final float range) {
+   public Photon(final float[] color, final float[] location, final float intensity, final LightAttribution value) {
       this.color = color;
       this.location = location;
       this.intensity = intensity;
-      this.range = range;
+      this.value = value;
    }
 }

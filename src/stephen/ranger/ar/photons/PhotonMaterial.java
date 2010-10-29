@@ -6,6 +6,7 @@ import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
+import stephen.ranger.ar.photons.Photon.LightAttribution;
 
 public class PhotonMaterial extends ColorInformation {
    public PhotonMaterial(final Color diffuse) {
@@ -19,27 +20,22 @@ public class PhotonMaterial extends ColorInformation {
 
       if (photons.length > 0) {
          for (int i = 0; i < photons.length; i++) {
-            final double random = (double) i / (double) photons.length;
-            final int cell = random < 0.33 ? 1 : random < 0.67 ? 2 : 0;
+            final float invDistance = 1f / RTStatics.getDistance(new float[] { camera.origin.x, camera.origin.y, camera.origin.z }, photons[i].location);
 
-            total[cell][0] += photons[i].intensity * photons[i].color[0];
-            total[cell][1] += photons[i].intensity * photons[i].color[1];
-            total[cell][2] += photons[i].intensity * photons[i].color[2];
+            total[photons[i].value.cell][0] += photons[i].intensity * invDistance * photons[i].color[0];
+            total[photons[i].value.cell][1] += photons[i].intensity * invDistance * photons[i].color[1];
+            total[photons[i].value.cell][2] += photons[i].intensity * invDistance * photons[i].color[2];
 
-            counts[cell]++;
+            counts[photons[i].value.cell]++;
          }
 
-         total[0][0] /= counts[0];
-         total[0][1] /= counts[0];
-         total[0][2] /= counts[0];
+         total[LightAttribution.DIFFUSE.cell][0] /= counts[LightAttribution.DIFFUSE.cell];
+         total[LightAttribution.DIFFUSE.cell][1] /= counts[LightAttribution.DIFFUSE.cell];
+         total[LightAttribution.DIFFUSE.cell][2] /= counts[LightAttribution.DIFFUSE.cell];
 
-         total[1][0] /= counts[1];
-         total[1][1] /= counts[1];
-         total[1][2] /= counts[1];
-
-         total[2][0] /= counts[2];
-         total[2][1] /= counts[2];
-         total[2][2] /= counts[2];
+         total[LightAttribution.SPECULAR.cell][0] /= counts[LightAttribution.SPECULAR.cell];
+         total[LightAttribution.SPECULAR.cell][1] /= counts[LightAttribution.SPECULAR.cell];
+         total[LightAttribution.SPECULAR.cell][2] /= counts[LightAttribution.SPECULAR.cell];
       }
 
       return total;//Math.min(1f, total);

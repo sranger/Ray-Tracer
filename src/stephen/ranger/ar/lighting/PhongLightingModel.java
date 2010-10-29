@@ -10,6 +10,7 @@ import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.bounds.BoundingVolume;
+import stephen.ranger.ar.photons.Photon.LightAttribution;
 import stephen.ranger.ar.photons.PhotonMaterial;
 
 public class PhongLightingModel extends LightingModel {
@@ -25,41 +26,44 @@ public class PhongLightingModel extends LightingModel {
    public Color getPixelColor(final IntersectionInformation info, final Camera camera) {
       final ColorInformation colorInfo = info.intersectionObject.getColorInformation(info);
       final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
-      final boolean shadowIntersects = shadowIntersects(info);
+      final boolean shadowIntersects = this.shadowIntersects(info);
 
       final float[] ks = shadowIntersects ? new float[3] : info.intersectionObject.getColorInformation(info).specular.getColorComponents(new float[3]);
       final float[] kd = shadowIntersects ? new float[3] : info.intersectionObject.getColor(info).getColorComponents(new float[3]);
       final float[] ka = info.intersectionObject.getColorInformation(info).ambient.getColorComponents(new float[3]);
       final float a = info.intersectionObject.getColorInformation(info).shininess;
 
-      final float[] is = shadowIntersects ? new float[3] : light.emission.getColorComponents(new float[3]);
-      final float[] id = shadowIntersects ? new float[3] : light.emission.getColorComponents(new float[3]);
-      final float[] ia = light.ambient.getColorComponents(new float[3]);
+      final float[] is = shadowIntersects ? new float[3] : this.light.emission.getColorComponents(new float[3]);
+      final float[] id = shadowIntersects ? new float[3] : this.light.emission.getColorComponents(new float[3]);
+      final float[] ia = this.light.ambient.getColorComponents(new float[3]);
 
       if (colorInfo instanceof PhotonMaterial) {
          final float[][] luminance = ((PhotonMaterial) colorInfo).getPhotonMapLuminocity(info, camera);
 
-         ia[0] *= luminance[0][0];
-         ia[1] *= luminance[0][1];
-         ia[2] *= luminance[0][2];
+         // ia[0] *= luminance[0][0];
+         // ia[1] *= luminance[0][1];
+         // ia[2] *= luminance[0][2];
+         ia[0] = 0;
+         ia[1] = 0;
+         ia[2] = 0;
 
-         id[0] *= luminance[1][0];
-         id[1] *= luminance[1][1];
-         id[2] *= luminance[1][2];
+         id[0] *= luminance[LightAttribution.DIFFUSE.cell][0];
+         id[1] *= luminance[LightAttribution.DIFFUSE.cell][1];
+         id[2] *= luminance[LightAttribution.DIFFUSE.cell][2];
 
-         is[0] *= luminance[2][0];
-         is[1] *= luminance[2][1];
-         is[2] *= luminance[2][2];
+         is[0] *= luminance[LightAttribution.SPECULAR.cell][0];
+         is[1] *= luminance[LightAttribution.SPECULAR.cell][1];
+         is[2] *= luminance[LightAttribution.SPECULAR.cell][2];
       }
 
       final Vector3f L = new Vector3f();
-      L.sub(light.origin, info.intersection);
+      L.sub(this.light.origin, info.intersection);
       L.normalize();
 
       final Vector3f N = new Vector3f(info.normal);
 
       final Vector3f V = new Vector3f();
-      V.sub(info.intersection, cameraPosition);
+      V.sub(info.intersection, this.cameraPosition);
       V.normalize();
 
       // r = L - 2f * N * L.dot(N)
@@ -76,19 +80,19 @@ public class PhongLightingModel extends LightingModel {
 
    public boolean shadowIntersects(final IntersectionInformation info) {
       final Vector3f shadowRayDirection = new Vector3f();
-      shadowRayDirection.sub(light.origin, info.intersection);
+      shadowRayDirection.sub(this.light.origin, info.intersection);
       shadowRayDirection.normalize();
 
       final Ray shadowRay = new Ray(info.intersection, shadowRayDirection);
       IntersectionInformation shadowInfo = null;
 
-      for (final BoundingVolume object : objects) {
+      for (final BoundingVolume object : this.objects) {
          // TODO: dont check against individual objects but against triangles in a mesh
          //         if (object instanceof KDTree || !object.equals(info.intersectionObject)) {
          shadowInfo = object.getChildIntersection(shadowRay);
 
-         if (shadowInfo != null && shadowInfo.w > RTStatics.EPSILON) {
-            final float lightDistance = RTStatics.getDistance(shadowInfo.intersection, light.origin);
+         if ((shadowInfo != null) && (shadowInfo.w > RTStatics.EPSILON)) {
+            final float lightDistance = RTStatics.getDistance(shadowInfo.intersection, this.light.origin);
 
             if (shadowInfo.w < lightDistance + RTStatics.EPSILON) {
                return true;
