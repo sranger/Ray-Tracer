@@ -31,7 +31,7 @@ public class CheckerboardMaterial extends ColorInformation {
       final float yDist = info.intersection.y - minMax[0][1];
       final float zDist = info.intersection.z - minMax[0][2];
 
-      if ((xDist > 0) || (yDist < 0) || (zDist < 0) || (xDist > xSpan) || (yDist > ySpan) || (zDist > zSpan)) {
+      if ((xDist < 0) || (yDist < 0) || (zDist < 0) || (xDist > xSpan) || (yDist > ySpan) || (zDist > zSpan)) {
          return new float[3];
       }
 

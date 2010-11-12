@@ -53,9 +53,9 @@ public class RayTracerInterface extends JFrame {
       multiSamplesField.setMaximumSize(new Dimension(200, 20));
       final JSpinner brdfSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 205, 1));
       brdfSamplesField.setMaximumSize(new Dimension(200, 20));
-      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(512, 1, 10240, 128));
+      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 128));
       imageXField.setMaximumSize(new Dimension(200, 20));
-      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(512, 1, 10240, 128));
+      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 128));
       imageYField.setMaximumSize(new Dimension(200, 20));
 
       final JList sceneList = new JList(RayTracer.Scenes.values());
@@ -99,7 +99,7 @@ public class RayTracerInterface extends JFrame {
       final JScrollPane imagePane = new JScrollPane(iconLabel);
       imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
       imagePane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-      imagePane.setPreferredSize(new Dimension(530, 530));
+      imagePane.setPreferredSize(new Dimension(1050, 1050));
 
       final JButton renderButton = new JButton("Render Scene");
       final JButton closeButton = new JButton("Close");

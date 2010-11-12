@@ -32,8 +32,8 @@ public class Scene {
          maxz = Math.max(maxz, minmax[1][2]);
       }
 
-      final float minSpan = Math.min(maxx - minx, Math.min(maxy - miny, maxz - minz));
-      RTStatics.EPSILON = minSpan / (65536f * 8f);
+      final float maxSpan = Math.max(maxx - minx, Math.max(maxy - miny, maxz - minz));
+      RTStatics.EPSILON = (maxSpan < 10) ? 1e-15f : 1e-3f;
       System.out.println("epsilon: " + RTStatics.EPSILON);
    }
 }

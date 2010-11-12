@@ -88,7 +88,7 @@ public class BRDFMaterial extends ColorInformation {
          return 0f;
       }
 
-      return luminocity / weight;
+      return luminocity / weight * 6f;
    }
 
    /**
@@ -157,11 +157,11 @@ public class BRDFMaterial extends ColorInformation {
 
    @Override
    public float[] getMaterialColor(final Camera camera, final IntersectionInformation info, final int depth) {
-      final float[] returnColor = this.diffuse.getColorComponents(new float[3]);
+      float[] returnColor = this.diffuse.getColorComponents(new float[3]);
       final float luminance = this.getBRDFLuminocity(info, camera);
-      returnColor[0] *= luminance;
-      returnColor[1] *= luminance;
-      returnColor[2] *= luminance;
+      final float[] hsv = RTStatics.convertRGBtoHSV(returnColor);
+      hsv[2] = luminance;
+      returnColor = RTStatics.convertHSVtoRGB(hsv);
 
       return returnColor;
    }

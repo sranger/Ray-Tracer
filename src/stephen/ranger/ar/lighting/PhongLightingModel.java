@@ -45,11 +45,12 @@ public class PhongLightingModel extends LightingModel {
       final double LdotN = L.dot(N);
       final double RdotVexpA = Math.pow(V.dot(R), a);
 
-      final double shade = (shadowIntersects) ? 0.3f : 1f;
+      final double spec = (shadowIntersects) ? 0f : 1f;
+      final double shade = (shadowIntersects) ? 0.6f : 1f;
 
-      color[0] *= (shade * (kd[0] * LdotN * id[0] + ks[0] * RdotVexpA * is[0] + 0.4f * ia[0]));
-      color[1] *= (shade * (kd[1] * LdotN * id[1] + ks[1] * RdotVexpA * is[1] + 0.4f * ia[1]));
-      color[2] *= (shade * (kd[2] * LdotN * id[2] + ks[2] * RdotVexpA * is[2] + 0.4f * ia[2]));
+      color[0] *= shade * (kd[0] * LdotN * id[0] + spec * ks[0] * RdotVexpA * is[0] + 0.4f * ia[0]);
+      color[1] *= shade * (kd[1] * LdotN * id[1] + spec * ks[1] * RdotVexpA * is[1] + 0.4f * ia[1]);
+      color[2] *= shade * (kd[2] * LdotN * id[2] + spec * ks[2] * RdotVexpA * is[2] + 0.4f * ia[2]);
 
       return color;
    }

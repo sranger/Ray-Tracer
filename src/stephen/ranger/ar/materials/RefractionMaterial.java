@@ -7,8 +7,6 @@ import javax.vecmath.Vector3f;
 import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
-import stephen.ranger.ar.Ray;
-import stephen.ranger.ar.sceneObjects.Sphere;
 
 public class RefractionMaterial extends ColorInformation {
    public static final float INDEX_OF_AIR = 1.00029f;
@@ -19,6 +17,7 @@ public class RefractionMaterial extends ColorInformation {
    public static final float INDEX_OF_SAPPHIRE = 1.77f;
    public static final float INDEX_OF_DIAMOND = 2.417f;
 
+   public final float aetherIndex = INDEX_OF_AIR;
    public final float refractionIndex;
 
    public RefractionMaterial(final Color diffuse, final float refractionIndex) {
@@ -32,9 +31,7 @@ public class RefractionMaterial extends ColorInformation {
       if (info == null) {
          return camera.light.ambient.getColorComponents(new float[3]);
       } else {
-         // if n.dot(d) > 0, then direction is coming from behind the face (out the same direction as the normal)
-         final float rayDir = info.normal.dot(info.ray.direction);
-         final Vector3f refractionDirection = this.getRefractionDirection(info, (rayDir > 0) ? this.refractionIndex : INDEX_OF_AIR, (rayDir > 0) ? INDEX_OF_AIR : this.refractionIndex);
+         final Vector3f refractionDirection = this.getRefractionDirection(info);
          final IntersectionInformation closest = (refractionDirection == null) ? null : camera.getClosestIntersection(info.intersectionObject, info.intersection, refractionDirection, depth + 1);
 
          if (closest == null) {
@@ -42,16 +39,16 @@ public class RefractionMaterial extends ColorInformation {
          } else {
             final float[] returnColor = closest.intersectionObject.getColor(closest, camera, depth + 1);
 
-            if (true) {// info.normal.dot(info.ray.direction) > 0f) {
+            if (info.normal.dot(info.ray.direction) <= 0f) {
                final float distance = RTStatics.getDistance(info.intersection, closest.intersection);
                final float[] color = info.intersectionObject.getDiffuse();
                color[0] *= (0.15f * -distance);
                color[1] *= (0.15f * -distance);
                color[2] *= (0.15f * -distance);
 
-               returnColor[0] *= Math.exp(color[0]);
-               returnColor[1] *= Math.exp(color[1]);
-               returnColor[2] *= Math.exp(color[2]);
+               returnColor[0] += Math.exp(color[0]);
+               returnColor[1] += Math.exp(color[1]);
+               returnColor[2] += Math.exp(color[2]);
             }
 
             return returnColor;
@@ -59,74 +56,71 @@ public class RefractionMaterial extends ColorInformation {
       }
    }
 
-   private Vector3f getRefractionDirection(final IntersectionInformation info, final float originIndex, final float destinationIndex) {
+   private Vector3f getRefractionDirection(final IntersectionInformation info) {
       if (info == null) {
          return null;
       }
 
-      final Vector3f rayDir = new Vector3f(info.ray.direction);
-      rayDir.scale(-1f);
+      final Vector3f inDir = new Vector3f(info.ray.direction);
+      final Vector3f surfaceNormal = new Vector3f(info.normal);
 
-      final double n1 = originIndex;
-      final double n2 = destinationIndex;
+      double n;
+      double cosI = surfaceNormal.dot(inDir);
 
-      final double n = n1 / n2;
-      final double cosI = info.normal.dot(rayDir);
-      final double sinT2 = n * n * (1.0 - cosI * cosI);
+      final Vector3f outDir = new Vector3f();
 
-      if (sinT2 > 1.0) {
-         // System.err.println("\n" + n1 + " / " + n2 + " == " + n);
-         // System.err.println(info.normal + ".dot(" + info.ray.direction + ") == " + cosI);
-         // System.err.println("sinT2 == " + sinT2);
-
-         // return null;
-         return this.getRefractionDirection(info, destinationIndex, originIndex);
+      if (cosI <= 0) {
+         n = this.refractionIndex / this.aetherIndex;
+         cosI = -cosI;
+      } else {
+         n = this.aetherIndex / this.refractionIndex;
+         surfaceNormal.scale(-1f);
       }
 
-      final Vector3f incident = new Vector3f(rayDir);
-      incident.scale((float) n);
+      final double snellRoot = 1.0 - (n * n * (1.0 - cosI * cosI));
 
-      final Vector3f normal = new Vector3f(info.normal);
-      normal.scale((float) (n + Math.sqrt(1.0 - sinT2)));
-
-      incident.sub(normal);
-      incident.normalize();
-
-      if (cosI > 0f) {
-         incident.scale(-1f);
+      if (snellRoot < 0) {
+         outDir.set(RTStatics.getReflectionDirection(surfaceNormal, inDir));
+      } else {
+         outDir.set(inDir);
+         outDir.scale((float) n);
+         final Vector3f scaledNormal = new Vector3f(surfaceNormal);
+         scaledNormal.scale((float) (n * cosI - Math.sqrt(snellRoot)));
+         outDir.add(scaledNormal);
+         outDir.normalize();
       }
 
-      return incident;
+      return outDir;
    }
 
-   public static void main(final String[] args) {
-      // create a refraction material
-      final RefractionMaterial material = new RefractionMaterial(Color.blue, INDEX_OF_GLASS);
-
-      // create our initial ray
-      final Vector3f origin = new Vector3f(0.5f, 0, 0);
-      final Vector3f direction = new Vector3f(0, 1, 0);
-      Ray ray = new Ray(origin, direction);
-
-      // put sphere directly above origin in line with ray
-      final Sphere sphere = new Sphere(1f, new Vector3f(0, 2, 0), new ColorInformation(Color.blue));
-      int ctr = 1;
-      IntersectionInformation info;
-
-      do {
-         // check intersection
-         info = sphere.getIntersection(ray, 0);
-
-         if (info != null) {
-            // get refraction direction at given intersection
-            final Vector3f refractionDirection = material.getRefractionDirection(info, INDEX_OF_AIR, INDEX_OF_GLASS);
-            System.out.println("\n" + ctr + ". origin:       " + info.ray.origin + "\n   direction:    " + info.ray.direction + "\n   intersection: " + info.intersection + "\n   normal:       "
-                  + info.normal + "\n   refraction:   " + refractionDirection + "\n   distance:     " + info.w);
-
-            // move ray to new intersection location
-            ray = new Ray(info.intersection, refractionDirection);
-            ctr++;
-         }
-      } while (info != null);
-   }
+   // public static void main(final String[] args) {
+   // // create a refraction material
+   // final RefractionMaterial material = new RefractionMaterial(Color.blue, INDEX_OF_GLASS);
+   //
+   // // create our initial ray
+   // final Vector3f origin = new Vector3f(0f, -0.5f, -1f);
+   // final Vector3f direction = new Vector3f(0, 0, 1);
+   // Ray ray = new Ray(origin, direction);
+   //
+   // // put sphere directly above origin in line with ray
+   // final Sphere sphere = new Sphere(1f, new Vector3f(0, 0, 0), new ColorInformation(Color.blue));
+   // int ctr = 1;
+   // IntersectionInformation info;
+   //
+   // do {
+   // // check intersection
+   // info = sphere.getIntersection(ray, 0);
+   //
+   // if (info != null) {
+   // // get refraction direction at given intersection
+   // final Vector3f refractionDirection = material.getRefractionDirection(info);
+   // System.out.println("\n" + ctr + ". origin:       " + info.ray.origin + "\n   direction:    " + info.ray.direction + "\n   intersection: " + info.intersection + "\n   normal:       "
+   // + info.normal + "\n   refraction:   " + refractionDirection + "\n   distance:     " + info.w);
+   //
+   // // move ray to new intersection location
+   // ray = new Ray(info.intersection, refractionDirection);
+   // ctr++;
+   // }
+   // } while (info != null);
+   // }
 }

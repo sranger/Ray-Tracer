@@ -8,6 +8,7 @@ import javax.vecmath.Vector3f;
 import stephen.ranger.ar.bounds.BoundingVolume;
 import stephen.ranger.ar.lighting.GlobalIlluminationLightingModel;
 import stephen.ranger.ar.lighting.Light;
+import stephen.ranger.ar.lighting.LightingModel;
 import stephen.ranger.ar.lighting.PhongLightingModel;
 import stephen.ranger.ar.materials.BRDFMaterial;
 import stephen.ranger.ar.materials.CheckerboardMaterial;
@@ -82,10 +83,10 @@ public class RayTracer {
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 35f);
       } else if (scene.equals(Scenes.WHITTED_SCENE_BRDF)) {
          final BoundingVolume[] volumes = RayTracer.getWhittedObjects(true);
-         return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 35f);
+         return new Scene(volumes, light, new float[] { 0, 0, 0 }, new LightingModel(), 35f);
       } else if (scene.equals(Scenes.STANFORD_BUNNY)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/bunny/reconstruction/bun_zipper.ply"), new RefractionMaterial(Color.white,
-               RefractionMaterial.INDEX_OF_GLASS), useKDTree).getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/bunny/reconstruction/bun_zipper.ply"), new ColorInformation(Color.white), useKDTree)
+               .getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 15f);
       } else if (scene.equals(Scenes.STANFORD_DRAGON)) {
          final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/dragon_recon/dragon_vrip.ply"), new ColorInformation(new Color(0.9f, 0.9f, 0.9f, 1f)),
@@ -125,8 +126,8 @@ public class RayTracer {
       final ReflectionMaterial blue = new ReflectionMaterial(Color.blue);
       final RefractionMaterial glass = new RefractionMaterial(Color.gray, RefractionMaterial.INDEX_OF_GLASS);
 
-      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(15, Color.white) : glass);
-      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(16, Color.cyan) : blue);
+      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(15, Color.green) : glass);// new ColorInformation(Color.blue));
+      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(16, Color.cyan) : blue);// new ColorInformation(Color.green));
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
 
