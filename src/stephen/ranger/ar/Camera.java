@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -19,9 +18,6 @@ import javax.vecmath.Vector3f;
 import stephen.ranger.ar.bounds.BoundingVolume;
 import stephen.ranger.ar.lighting.Light;
 import stephen.ranger.ar.lighting.LightingModel;
-import stephen.ranger.ar.photons.Photon;
-import stephen.ranger.ar.photons.Photon.LightAttribution;
-import stephen.ranger.ar.photons.PhotonTree;
 
 public class Camera {
    private static final int nodeSize = 128;
@@ -40,10 +36,6 @@ public class Camera {
    public BufferedImage normalizedImage = null;
    public final Set<ActionListener> listeners = new HashSet<ActionListener>();
    public final float[][][] pixels;
-
-   public PhotonTree photons = null;
-
-   public float EPSILON = 1e-15f;
 
    public Camera(final Scene scene, final int multiSamples, final int brdfSamples, final float nearPlane, final int screenWidth, final int screenHeight) {
       this.objects = scene.objects;
@@ -98,7 +90,7 @@ public class Camera {
       System.out.println("camera location:  " + this.origin);
       System.out.println("camera direction: " + viewportDirection);
 
-      this.lightingModel.setCameraPosition(new float[] { this.origin.x, this.origin.y, this.origin.z });
+      this.lightingModel.setCamera(this);
    }
 
    public void setPixel(final int x, final int y, final float[] color) {
@@ -108,11 +100,11 @@ public class Camera {
          this.pixels[x][y] = color;
       }
 
-      this.image.setRGB(
-            x,
-            y,
-            (int) RTStatics.bound(0, 255, (this.pixels[x][y][0] * 255)) * 65536 + (int) RTStatics.bound(0, 255, (this.pixels[x][y][1] * 255)) * 256
-            + (int) RTStatics.bound(0, 255, (this.pixels[x][y][2] * 255)));
+      final float r = RTStatics.bound(0f, 1f, this.pixels[x][y][0]);
+      final float g = RTStatics.bound(0f, 1f, this.pixels[x][y][1]);
+      final float b = RTStatics.bound(0f, 1f, this.pixels[x][y][2]);
+
+      this.image.setRGB(x, y, new Color(r, g, b).getRGB());
    }
 
    public BufferedImage getNormalizedImage() {
@@ -128,11 +120,6 @@ public class Camera {
       new Thread() {
          @Override
          public void run() {
-            final long startTimePhotonMap = System.nanoTime();
-            Camera.this.photons = Camera.this.computePhotonMap();
-            final long endTimePhotonMap = System.nanoTime();
-            System.out.println("Created Photon Map in " + (endTimePhotonMap - startTimePhotonMap) / 1000000000. + " seconds");
-
             final float xStart = -(Camera.this.viewportWidth / 2.0f);
             final float yStart = Camera.this.viewportHeight / 2.0f;
             final float xInc = Camera.this.viewportWidth / Camera.this.screenWidth;
@@ -207,120 +194,14 @@ public class Camera {
       }.start();
    }
 
-   protected PhotonTree computePhotonMap() {
-      final Vector3f originDirection = new Vector3f();
-      originDirection.sub(this.light.origin);
-      originDirection.normalize();
-      final List<Photon> photons = new ArrayList<Photon>();
-
-      RTStatics.setProgressBarString("Computing Photon Map...");
-      RTStatics.setProgressBarMinMax(0, RTStatics.NUM_PHOTONS);
-
-      final int axisCount = (int) Math.cbrt(RTStatics.NUM_PHOTONS);
-      final float step = 360f / axisCount;
-      int ctr = 0;
-
-      final Matrix4f rotation = new Matrix4f();
-      final Random random = new Random();
-
-      /**
-       * Random photons
-       */
-      for (int i = 0; i < RTStatics.NUM_PHOTONS; i++) {
-         rotation.set(RTStatics.initializeQuat4f(new float[] { random.nextFloat() * 360f, random.nextFloat() * 360f, random.nextFloat() * 360f }));
-         Vector3f dir = new Vector3f(0, 0, 1);
-         rotation.transform(dir);
-         dir.normalize();
-         Vector3f intersection = new Vector3f(this.light.origin);
-         float intensity = RTStatics.STARTING_INTENSITY;
-         final float[] emissionColor = this.light.emission.getColorComponents(new float[3]);
-
-         for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
-            final float chance = random.nextFloat();
-            final LightAttribution value = (chance < 0.33f) ? LightAttribution.DIFFUSE : (chance < 0.67f) ? LightAttribution.SPECULAR : null;
-
-            if (value != null) {
-               final IntersectionInformation info = this.getClosestIntersection(null, intersection, dir);
-               if (info != null) {
-                  final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
-                  emissionColor[0] *= color[0];
-                  emissionColor[1] *= color[1];
-                  emissionColor[2] *= color[2];
-
-                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity, value));
-                  intensity *= RTStatics.PHOTON_FALLOFF;
-
-                  intersection = info.intersection;
-                  dir = RTStatics.getReflectionDirection(info.normal, dir);
-               } else {
-                  m = RTStatics.NUM_REFLECTIONS;
-               }
-
-               ctr++;
-            } else {
-               m = RTStatics.NUM_REFLECTIONS;
-            }
-         }
-      }
-
-      RTStatics.incrementProgressBarValue(axisCount);
-
-      /**
-       * Grid of photons
-       */
-      // for (int x = 0; x < axisCount; x++) {
-      // for (int y = 0; y < axisCount; y++) {
-      // for (int z = 0; z < axisCount; z++) {
-      // rotation.set(RTStatics.initializeQuat4f(new float[] { step * x, step * y, step * z }));
-      // Vector3f dir = new Vector3f(0, 0, 1);
-      // rotation.transform(dir);
-      // dir.normalize();
-      // Vector3f intersection = new Vector3f(this.light.origin);
-      // float intensity = RTStatics.STARTING_INTENSITY;
-      // final float[] emissionColor = this.light.emission.getColorComponents(new float[3]);
-      //
-      // for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
-      // final IntersectionInformation info = this.getClosestIntersection(null, intersection, dir);
-      // if (info != null) {
-      // final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
-      // emissionColor[0] *= color[0];
-      // emissionColor[1] *= color[1];
-      // emissionColor[2] *= color[2];
-      // photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity));
-      // intensity *= RTStatics.PHOTON_FALLOFF;
-      //
-      // intersection = info.intersection;
-      // dir = RTStatics.getReflectionDirection(info.normal, dir);
-      // } else {
-      // m = RTStatics.NUM_REFLECTIONS;
-      // }
-      //
-      // ctr++;
-      // }
-      // }
-      //
-      // RTStatics.incrementProgressBarValue(axisCount);
-      // }
-      // }
-
-      System.out.println("num photons: " + ctr);
-
-      RTStatics.setProgressBarValue(RTStatics.NUM_PHOTONS);
-      RTStatics.setProgressBarMinMax(0, photons.size());
-      RTStatics.setProgressBarValue(0);
-      RTStatics.setProgressBarString("Creating Photon Map KD-Tree");
-
-      return new PhotonTree(photons.toArray(new Photon[photons.size()]));
-   }
-
-   public IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
+   public IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction, final int depth) {
       final Ray ray = new Ray(origin, direction);
       IntersectionInformation closest = null;
       IntersectionInformation temp = null;
 
       for (final BoundingVolume object : this.objects) {
          if (((mirrorObject == null) || !mirrorObject.equals(object)) && object.intersects(ray)) {
-            temp = object.getChildIntersection(ray);
+            temp = object.getChildIntersection(ray, depth + 1);
 
             if ((temp != null) && (temp.w > RTStatics.EPSILON)) {
                closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
@@ -366,7 +247,7 @@ public class Camera {
 
                      // System.err.println("(" + oldV + " - " + min + ") / " + "(" + max + " - " + min + ") == " + hsv[2]);
 
-                     this.normalizedImage.setRGB(x, y, new Color(rgb[0], rgb[1], rgb[2]).getRGB());
+                     this.normalizedImage.setRGB(x, y, new Color(RTStatics.bound(0, 1, rgb[0]), RTStatics.bound(0, 1, rgb[1]), RTStatics.bound(0, 1, rgb[2])).getRGB());
                   }
                }
             }

@@ -4,15 +4,17 @@ import java.awt.Color;
 
 import javax.vecmath.Vector3f;
 
-import stephen.ranger.ar.ColorInformation;
+import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
+import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.bounds.BoundingSphere;
 import stephen.ranger.ar.bounds.BoundingVolume;
+import stephen.ranger.ar.materials.ColorInformation;
 
 public abstract class SceneObject {
-   public final ColorInformation colorInfo;
-   public BoundingVolume boundingVolume = new BoundingSphere(this, new Vector3f(), 0);
+   protected final ColorInformation colorInfo;
+   protected BoundingVolume boundingVolume = new BoundingSphere(this, new Vector3f(), 0);
 
    /**
     * Creates a new SceneObject instance.
@@ -27,7 +29,7 @@ public abstract class SceneObject {
    }
 
    public SceneObject() {
-      this.colorInfo = new ColorInformation(Color.black, Color.white, Color.white, Color.white, 20, false);
+      this.colorInfo = new ColorInformation(Color.black, Color.white, Color.white, Color.white, 20);
    }
 
    /**
@@ -36,10 +38,12 @@ public abstract class SceneObject {
     * 
     * @param ray
     *            The incoming ray
+    * @param depth
+    *            The depth of recursion
     * @return The closest point of intersection, its normal, and w value or
     *         null if no intersection occurs
     */
-   public abstract IntersectionInformation getIntersection(final Ray ray);
+   public abstract IntersectionInformation getIntersection(final Ray ray, final int depth);
 
    /**
     * Returns a BoundingVolume object that denotes the bounds of this object in
@@ -57,7 +61,34 @@ public abstract class SceneObject {
     * @param info  The IntersectionInformation that contains the intersection location.
     * @return  The color to display at the given intersection location
     */
-   public Color getColor(final Vector3f intersection) {
-      return this.colorInfo.diffuse;
+   public final float[] getColor(final IntersectionInformation info, final Camera camera, final int depth) {
+      if (depth >= RTStatics.MAX_RECURSION_DEPTH) {
+         return this.getDiffuse();
+      }
+
+      final float[] returnColor = new float[3];
+      this.colorInfo.getMaterialColor(returnColor, camera, info, depth);
+
+      return returnColor;
+   }
+
+   public float[] getEmission() {
+      return this.colorInfo.emission.getColorComponents(new float[3]);
+   }
+
+   public float[] getDiffuse() {
+      return this.colorInfo.diffuse.getColorComponents(new float[3]);
+   }
+
+   public float[] getSpecular() {
+      return this.colorInfo.specular.getColorComponents(new float[3]);
+   }
+
+   public float[] getAmbient() {
+      return this.colorInfo.ambient.getColorComponents(new float[3]);
+   }
+
+   public float getShininess() {
+      return this.colorInfo.shininess;
    }
 }

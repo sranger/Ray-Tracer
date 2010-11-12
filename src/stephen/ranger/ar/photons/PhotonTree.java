@@ -3,7 +3,6 @@ package stephen.ranger.ar.photons;
 import java.util.ArrayList;
 import java.util.List;
 
-import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.bounds.AxisAlignedBoundingBox;
@@ -48,10 +47,21 @@ public class PhotonTree {
       RTStatics.setProgressBarValue(photons.length);
    }
 
-   public Photon[] getPhotonsInRange(final IntersectionInformation info, final float range, final Camera camera) {
+   public Photon[] getPhotonsInRange(final IntersectionInformation info, final float range) {
       final List<Photon> list = new ArrayList<Photon>();
-      // list.addAll(this.node.getPhotonsInRange(info, range, camera));
-      list.addAll(this.node.getPhotonsInRange(info.intersection, range, camera));
+
+      final float[] location = new float[3];
+      info.intersection.get(location);
+      PhotonTreeNode.maxSearchDistanceSquared = RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE;
+      // this.node.locatePhotons(location, list);
+
+      while (list.size() < RTStatics.COLLECTION_COUNT_THRESHOLD) {
+         list.clear();
+         PhotonTreeNode.rangeSearch(location, this.node, PhotonTreeNode.maxSearchDistanceSquared, list);
+         PhotonTreeNode.maxSearchDistanceSquared *= PhotonTreeNode.maxSearchDistanceSquared;
+      }
+
+      // System.out.println("found " + list.size() + " photons");
 
       return list.toArray(new Photon[list.size()]);
    }

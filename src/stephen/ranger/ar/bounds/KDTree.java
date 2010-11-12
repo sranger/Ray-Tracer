@@ -1,13 +1,13 @@
 package stephen.ranger.ar.bounds;
 
-import java.awt.Color;
 import java.util.Arrays;
 
-import stephen.ranger.ar.ColorInformation;
+import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
-import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.RTStatics.SeparationAxis;
+import stephen.ranger.ar.Ray;
+import stephen.ranger.ar.materials.ColorInformation;
 import stephen.ranger.ar.sceneObjects.TriangleMesh;
 
 public class KDTree extends BoundingVolume {
@@ -27,38 +27,38 @@ public class KDTree extends BoundingVolume {
       this.normals = normals;
       this.indices = indices;
       this.colorInfo = colorInfo;
-      shadowDistance = RTStatics.EPSILON;
+      this.shadowDistance = RTStatics.EPSILON;
 
-      minMax[0] = new float[] { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE };
-      minMax[1] = new float[] { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE };
+      this.minMax[0] = new float[] { Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE };
+      this.minMax[1] = new float[] { -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE };
 
       for (final float[] vertice : vertices) {
-         minMax[0][0] = Math.min(vertice[0], minMax[0][0]);
-         minMax[1][0] = Math.max(vertice[0], minMax[1][0]);
+         this.minMax[0][0] = Math.min(vertice[0], this.minMax[0][0]);
+         this.minMax[1][0] = Math.max(vertice[0], this.minMax[1][0]);
 
-         minMax[0][1] = Math.min(vertice[1], minMax[0][1]);
-         minMax[1][1] = Math.max(vertice[1], minMax[1][1]);
+         this.minMax[0][1] = Math.min(vertice[1], this.minMax[0][1]);
+         this.minMax[1][1] = Math.max(vertice[1], this.minMax[1][1]);
 
-         minMax[0][2] = Math.min(vertice[2], minMax[0][2]);
-         minMax[1][2] = Math.max(vertice[2], minMax[1][2]);
+         this.minMax[0][2] = Math.min(vertice[2], this.minMax[0][2]);
+         this.minMax[1][2] = Math.max(vertice[2], this.minMax[1][2]);
       }
 
-      shadowDistance = Math.max(minMax[1][0] - minMax[0][0], Math.max(minMax[1][1] - minMax[0][1], minMax[1][2] - minMax[0][2])) / 2000f;
+      this.shadowDistance = Math.max(this.minMax[1][0] - this.minMax[0][0], Math.max(this.minMax[1][1] - this.minMax[0][1], this.minMax[1][2] - this.minMax[0][2])) / 2000f;
 
       System.out.println("creating KD Tree...");
       final long startTime = System.nanoTime();
-      rootNode = new KDNode(parentMesh, this.vertices, this.normals, this.indices, minMax, SeparationAxis.X, 0, colorInfo, shadowDistance, computeKDTree);
+      this.rootNode = new KDNode(parentMesh, this.vertices, this.normals, this.indices, this.minMax, SeparationAxis.X, 0, colorInfo, this.shadowDistance, computeKDTree);
       final long endTime = System.nanoTime();
 
-      System.out.println("min/max: " + Arrays.toString(minMax[0]) + ", " + Arrays.toString(minMax[1]));
+      System.out.println("min/max: " + Arrays.toString(this.minMax[0]) + ", " + Arrays.toString(this.minMax[1]));
 
       System.out.println("KD Tree computation duration: " + (endTime - startTime) / 1000000000. + " seconds");
    }
 
    @Override
-   public IntersectionInformation getChildIntersection(final Ray ray) {
-      if (intersects(ray)) {
-         return rootNode.getChildIntersection(ray);
+   public IntersectionInformation getChildIntersection(final Ray ray, final int depth) {
+      if (this.intersects(ray)) {
+         return this.rootNode.getChildIntersection(ray, depth);
       } else {
          return null;
       }
@@ -66,21 +66,44 @@ public class KDTree extends BoundingVolume {
 
    @Override
    public boolean intersects(final Ray ray) {
-      return RTStatics.aabbIntersection(ray, getMinMax());
+      return RTStatics.aabbIntersection(ray, this.getMinMax());
    }
 
    @Override
    public float[][] getMinMax() {
-      return minMax;
+      return this.minMax;
    }
 
    @Override
-   public Color getColor(final IntersectionInformation info) {
-      return colorInfo.diffuse;
+   public float[] getColor(final IntersectionInformation info, final Camera camera, final int depth) {
+      final float[] returnColor = new float[3];
+      this.colorInfo.getMaterialColor(returnColor, camera, info, depth);
+
+      return returnColor;
    }
 
    @Override
-   public ColorInformation getColorInformation(final IntersectionInformation info) {
-      return colorInfo;
+   public float[] getEmission() {
+      return this.parentMesh.getEmission();
+   }
+
+   @Override
+   public float[] getDiffuse() {
+      return this.parentMesh.getDiffuse();
+   }
+
+   @Override
+   public float[] getSpecular() {
+      return this.parentMesh.getSpecular();
+   }
+
+   @Override
+   public float[] getAmbient() {
+      return this.parentMesh.getAmbient();
+   }
+
+   @Override
+   public float getShininess() {
+      return this.parentMesh.getShininess();
    }
 }

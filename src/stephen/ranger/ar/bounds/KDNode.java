@@ -1,16 +1,16 @@
 package stephen.ranger.ar.bounds;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.vecmath.Vector3f;
 
-import stephen.ranger.ar.ColorInformation;
+import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
-import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.RTStatics.SeparationAxis;
+import stephen.ranger.ar.Ray;
+import stephen.ranger.ar.materials.ColorInformation;
 import stephen.ranger.ar.sceneObjects.Triangle;
 import stephen.ranger.ar.sceneObjects.TriangleMesh;
 
@@ -37,7 +37,7 @@ public class KDNode extends BoundingVolume {
       this.parentMesh = parentMesh;
       this.shadowDistance = shadowDistance;
 
-      if (computeKDTree && depth < RTStatics.MAX_DEPTH && indices.length > RTStatics.MAX_CHILDREN) {
+      if (computeKDTree && (depth < RTStatics.MAX_DEPTH) && (indices.length > RTStatics.MAX_CHILDREN)) {
          float median;
          final List<int[]> leftChildren = new ArrayList<int[]>();
          final List<int[]> rightChildren = new ArrayList<int[]>();
@@ -71,81 +71,94 @@ public class KDNode extends BoundingVolume {
          if (leftChildren.size() > 0) {
             final int[][] leftChildrenFaces = leftChildren.toArray(new int[leftChildren.size()][3]);
             RTStatics.getMinMax(vertices, leftChildrenFaces, leftMinMax);
-            left = new KDNode(parentMesh, vertices, normals, leftChildrenFaces, leftMinMax, axis.getNextAxis(), depth + 1, colorInfo, shadowDistance, computeKDTree);
+            this.left = new KDNode(parentMesh, vertices, normals, leftChildrenFaces, leftMinMax, axis.getNextAxis(), depth + 1, colorInfo, shadowDistance, computeKDTree);
          } else {
-            left = null;
+            this.left = null;
          }
 
          if (rightChildren.size() > 0) {
             final int[][] rightChildrenFaces = rightChildren.toArray(new int[rightChildren.size()][3]);
             RTStatics.getMinMax(vertices, rightChildrenFaces, rightMinMax);
-            right = new KDNode(parentMesh, vertices, normals, rightChildrenFaces, rightMinMax, axis.getNextAxis(), depth + 1, colorInfo, shadowDistance, computeKDTree);
+            this.right = new KDNode(parentMesh, vertices, normals, rightChildrenFaces, rightMinMax, axis.getNextAxis(), depth + 1, colorInfo, shadowDistance, computeKDTree);
          } else {
-            right = null;
+            this.right = null;
          }
       } else {
-         left = null;
-         right = null;
+         this.left = null;
+         this.right = null;
       }
    }
 
    @Override
-   public IntersectionInformation getChildIntersection(final Ray ray) {
-      if (left != null || right != null) {
+   public IntersectionInformation getChildIntersection(final Ray ray, final int depth) {
+      if ((this.left != null) || (this.right != null)) {
          IntersectionInformation tempLeft = null, tempRight = null;
 
-         if (left != null && left.intersects(ray)) {
-            tempLeft = left.getChildIntersection(ray);
+         if ((this.left != null) && this.left.intersects(ray)) {
+            tempLeft = this.left.getChildIntersection(ray, depth);
          }
 
-         if (right != null && right.intersects(ray)) {
-            tempRight = right.getChildIntersection(ray);
+         if ((this.right != null) && this.right.intersects(ray)) {
+            tempRight = this.right.getChildIntersection(ray, depth);
          }
 
-         return tempLeft == null && tempRight == null ? null : tempLeft == null ? tempRight : tempRight == null ? tempLeft : tempLeft.w < tempRight.w ? tempLeft : tempRight;
+         return (tempLeft == null) && (tempRight == null) ? null : tempLeft == null ? tempRight : tempRight == null ? tempLeft : tempLeft.w < tempRight.w ? tempLeft : tempRight;
       } else {
          float[] temp;
          float[] closest = null;
 
-         for (final int[] face : indices) {
-            if (RTStatics.aabbIntersection(ray, minMax)) {
-               temp = Triangle.intersectsTriangle(ray.origin, ray.direction, vertices, normals, face);
+         for (final int[] face : this.indices) {
+            if (RTStatics.aabbIntersection(ray, this.minMax)) {
+               temp = Triangle.intersectsTriangle(ray.origin, ray.direction, this.vertices, this.normals, face);
 
-               if (temp != null && temp[6] > shadowDistance && (closest == null || temp[6] < closest[6])) {
+               if ((temp != null) && (temp[6] > this.shadowDistance) && ((closest == null) || (temp[6] < closest[6]))) {
                   closest = temp;
                }
             }
          }
 
-         return closest == null ? null : new IntersectionInformation(ray, parentMesh.boundingVolume, new Vector3f(closest[0], closest[1], closest[2]),
+         return closest == null ? null : new IntersectionInformation(ray, this.parentMesh.getBoundingVolume(), new Vector3f(closest[0], closest[1], closest[2]),
                new Vector3f(closest[3], closest[4], closest[5]), closest[6]);
       }
    }
 
    @Override
    public float[][] getMinMax() {
-      return minMax;
+      return this.minMax;
    }
 
    @Override
    public boolean intersects(final Ray ray) {
-      return RTStatics.aabbIntersection(ray, minMax);
+      return RTStatics.aabbIntersection(ray, this.minMax);
    }
 
    @Override
-   public Color getColor(final IntersectionInformation info) {
-      return info.intersectionObject.getColor(info);
+   public float[] getColor(final IntersectionInformation info, final Camera camera, final int depth) {
+      return this.parentMesh.getColor(info, camera, depth);
    }
 
    @Override
-   public ColorInformation getColorInformation(final IntersectionInformation info) {
-      if (info.intersectionObject instanceof AxisAlignedBoundingBox) {
-         return ((AxisAlignedBoundingBox) info.intersectionObject).child.colorInfo;
-      } else if (info.intersectionObject instanceof BoundingSphere) {
-         return ((BoundingSphere) info.intersectionObject).child.colorInfo;
-      } else {
-         // shouldn't happen
-         return null;
-      }
+   public float[] getEmission() {
+      return this.parentMesh.getEmission();
+   }
+
+   @Override
+   public float[] getDiffuse() {
+      return this.parentMesh.getDiffuse();
+   }
+
+   @Override
+   public float[] getSpecular() {
+      return this.parentMesh.getSpecular();
+   }
+
+   @Override
+   public float[] getAmbient() {
+      return this.parentMesh.getAmbient();
+   }
+
+   @Override
+   public float getShininess() {
+      return this.parentMesh.getShininess();
    }
 }

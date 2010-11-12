@@ -5,15 +5,13 @@ import stephen.ranger.ar.lighting.Light;
 import stephen.ranger.ar.lighting.LightingModel;
 
 public class Scene {
-   public final String label;
    public final BoundingVolume[] objects;
    public final Light light;
    public final float[] cameraOrientation;
    public final LightingModel lightingModel;
    public final float fov;
 
-   public Scene(final String label, final BoundingVolume[] objects, final Light light, final float[] cameraOrientation, final LightingModel lightingModel, final float fov) {
-      this.label = label;
+   public Scene(final BoundingVolume[] objects, final Light light, final float[] cameraOrientation, final LightingModel lightingModel, final float fov) {
       this.objects = objects;
       this.light = light;
       this.cameraOrientation = cameraOrientation;
@@ -35,12 +33,7 @@ public class Scene {
       }
 
       final float minSpan = Math.min(maxx - minx, Math.min(maxy - miny, maxz - minz));
-      RTStatics.EPSILON = minSpan / (65536f * 32f);
+      RTStatics.EPSILON = minSpan / (65536f * 8f);
       System.out.println("epsilon: " + RTStatics.EPSILON);
-   }
-
-   @Override
-   public String toString() {
-      return label;
    }
 }

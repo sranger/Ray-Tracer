@@ -2,15 +2,15 @@ package stephen.ranger.ar.sceneObjects;
 
 import javax.vecmath.Vector3f;
 
-import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.bounds.BoundingSphere;
+import stephen.ranger.ar.materials.ColorInformation;
 
 public class Sphere extends SceneObject {
-   public final float radius;
-   public final Vector3f origin;
+   private final float radius;
+   private final Vector3f origin;
 
    public Sphere(final float radius, final Vector3f origin, final ColorInformation colorInfo) {
       super(colorInfo);
@@ -26,9 +26,13 @@ public class Sphere extends SceneObject {
    }
 
    @Override
-   public IntersectionInformation getIntersection(final Ray ray) {
-      final Vector3f origin = new Vector3f(ray.origin);
+   public IntersectionInformation getIntersection(final Ray ray, final int depth) {
       final Vector3f direction = new Vector3f(ray.direction);
+      direction.scale(RTStatics.EPSILON * 2);
+      final Vector3f origin = new Vector3f(ray.origin);
+      origin.add(direction);
+      direction.set(ray.direction);
+      final float offsetDistance = 0;// RTStatics.getDistance(ray.origin, origin);
       final Vector3f center = new Vector3f(this.origin);
 
       final float a = (float) (Math.pow(direction.x, 2) + Math.pow(direction.y, 2) + Math.pow(direction.z, 2));
@@ -97,11 +101,11 @@ public class Sphere extends SceneObject {
       if (w > 0) {
          final Vector3f intersection = new Vector3f(ray.direction);
          intersection.scale(w);
-         intersection.add(ray.origin);
+         intersection.add(origin);
          final Vector3f normal = new Vector3f(intersection);
          normal.sub(this.origin);
          normal.normalize();
-         return new IntersectionInformation(ray, this.boundingVolume, intersection, normal, w);
+         return new IntersectionInformation(ray, this.boundingVolume, intersection, normal, w + offsetDistance);
       } else {
          return null;
       }

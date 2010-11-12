@@ -8,19 +8,17 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 
-import stephen.ranger.ar.ColorInformation;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
 import stephen.ranger.ar.bounds.KDTree;
+import stephen.ranger.ar.materials.ColorInformation;
 
 public class TriangleMesh extends SceneObject {
    private int numVertices, numFaces;
    private float[][] vertices;
    private float[][] normals;
    private int[][] indices;
-
-   boolean notDone = true;
 
    public TriangleMesh(final File modelLocation, final ColorInformation colorInfo, final boolean computeKDTree) {
       super(colorInfo);
@@ -32,21 +30,21 @@ public class TriangleMesh extends SceneObject {
          String temp = null;
          int ctr = 0;
          boolean body = false;
-         numVertices = 0;
-         numFaces = 0;
+         this.numVertices = 0;
+         this.numFaces = 0;
          boolean hasNormals = false;
          boolean isASCII = true;
          int propertyCount = 0;
          int xpos = -1, ypos = -1, zpos = -1, nxpos = -1, nypos = -1, nzpos = -1;
 
-         while (!body && (temp = reader.readLine()) != null) {
+         while (!body && ((temp = reader.readLine()) != null)) {
             if (temp.startsWith("element vertex")) {
-               numVertices = Integer.parseInt(temp.split(" ")[2]);
-               vertices = new float[numVertices][3];
-               normals = new float[numVertices][3];
+               this.numVertices = Integer.parseInt(temp.split(" ")[2]);
+               this.vertices = new float[this.numVertices][3];
+               this.normals = new float[this.numVertices][3];
             } else if (temp.startsWith("element face")) {
-               numFaces = Integer.parseInt(temp.split(" ")[2]);
-               indices = new int[numFaces][3];
+               this.numFaces = Integer.parseInt(temp.split(" ")[2]);
+               this.indices = new int[this.numFaces][3];
             } else if (temp.startsWith("property")) {
                if (temp.endsWith(" nx")) {
                   nxpos = propertyCount;
@@ -75,20 +73,20 @@ public class TriangleMesh extends SceneObject {
             ctr++;
          }
          System.out.println("position locations: " + xpos + ", " + ypos + ", " + zpos + "\nnormal locations: " + nxpos + ", " + nypos + ", " + nzpos);
-         hasNormals = nxpos != -1 && nypos != -1 && nzpos != -1;
+         hasNormals = (nxpos != -1) && (nypos != -1) && (nzpos != -1);
 
          if (isASCII) {
-            readASCII(reader, new int[] { xpos, ypos, zpos }, new int[] { nxpos, nypos, nzpos }, hasNormals);
+            this.readASCII(reader, new int[] { xpos, ypos, zpos }, new int[] { nxpos, nypos, nzpos }, hasNormals);
          } else {
-            readBinary(modelLocation, propertyCount, new int[] { xpos, ypos, zpos }, new int[] { nxpos, nypos, nzpos }, hasNormals);
+            this.readBinary(modelLocation, propertyCount, new int[] { xpos, ypos, zpos }, new int[] { nxpos, nypos, nzpos }, hasNormals);
          }
 
          final long endTime = System.nanoTime();
          System.out.println("model parsed in " + (endTime - startTime) / 1000000000. + " seconds");
 
-         computeNormals(hasNormals);
+         this.computeNormals(hasNormals);
 
-         setBoundingVolume(new KDTree(TriangleMesh.this, vertices, normals, indices, colorInfo, computeKDTree));
+         this.setBoundingVolume(new KDTree(TriangleMesh.this, this.vertices, this.normals, this.indices, colorInfo, computeKDTree));
       } catch (final Exception e) {
          e.printStackTrace();
          System.exit(1);
@@ -100,13 +98,13 @@ public class TriangleMesh extends SceneObject {
          final long startTime = System.nanoTime();
          float[] normal = new float[3];
 
-         for (final int[] face : indices) {
-            normal = RTStatics.computeNormal(vertices, face);
+         for (final int[] face : this.indices) {
+            normal = RTStatics.computeNormal(this.vertices, face);
 
             for (final int i : face) {
-               normals[i][0] += normal[0];
-               normals[i][1] += normal[1];
-               normals[i][2] += normal[2];
+               this.normals[i][0] += normal[0];
+               this.normals[i][1] += normal[1];
+               this.normals[i][2] += normal[2];
             }
          }
 
@@ -114,12 +112,12 @@ public class TriangleMesh extends SceneObject {
          float length = 0;
 
          // average and normalize
-         for (int i = 0; i < normals.length; i++) {
-            length = RTStatics.getDistance(zero, normals[i]);
+         for (int i = 0; i < this.normals.length; i++) {
+            length = RTStatics.getDistance(zero, this.normals[i]);
 
-            normals[i][0] /= length;
-            normals[i][1] /= length;
-            normals[i][2] /= length;
+            this.normals[i][0] /= length;
+            this.normals[i][1] /= length;
+            this.normals[i][2] /= length;
          }
 
          final long endTime = System.nanoTime();
@@ -131,25 +129,25 @@ public class TriangleMesh extends SceneObject {
       String[] split;
       String temp;
 
-      for (int i = 0; i < numVertices; i++) {
+      for (int i = 0; i < this.numVertices; i++) {
          split = reader.readLine().split(" ");
 
-         vertices[i][0] = Float.parseFloat(split[pos[0]]);
-         vertices[i][1] = Float.parseFloat(split[pos[1]]);
-         vertices[i][2] = Float.parseFloat(split[pos[2]]);
+         this.vertices[i][0] = Float.parseFloat(split[pos[0]]);
+         this.vertices[i][1] = Float.parseFloat(split[pos[1]]);
+         this.vertices[i][2] = Float.parseFloat(split[pos[2]]);
 
-         normals[i][0] = hasNormals ? Float.parseFloat(split[normal[0]]) : 0;
-         normals[i][1] = hasNormals ? Float.parseFloat(split[normal[1]]) : 0;
-         normals[i][2] = hasNormals ? Float.parseFloat(split[normal[2]]) : 0;
+         this.normals[i][0] = hasNormals ? Float.parseFloat(split[normal[0]]) : 0;
+         this.normals[i][1] = hasNormals ? Float.parseFloat(split[normal[1]]) : 0;
+         this.normals[i][2] = hasNormals ? Float.parseFloat(split[normal[2]]) : 0;
       }
 
       int ctr = 0;
 
       while ((temp = reader.readLine()) != null) {
          split = temp.split(" ");
-         indices[ctr][0] = Integer.parseInt(split[1]);
-         indices[ctr][1] = Integer.parseInt(split[2]);
-         indices[ctr][2] = Integer.parseInt(split[3]);
+         this.indices[ctr][0] = Integer.parseInt(split[1]);
+         this.indices[ctr][1] = Integer.parseInt(split[2]);
+         this.indices[ctr][2] = Integer.parseInt(split[3]);
          ctr++;
       }
    }
@@ -172,36 +170,36 @@ public class TriangleMesh extends SceneObject {
       System.out.println("property count: " + propertyCount);
       final float[] properties = new float[propertyCount];
 
-      for (int i = 0; i < numVertices; i++) {
+      for (int i = 0; i < this.numVertices; i++) {
          for (int j = 0; j < propertyCount; j++) {
             properties[j] = dis.readFloat();
          }
 
-         vertices[i][0] = properties[pos[0]];
-         vertices[i][1] = properties[pos[1]];
-         vertices[i][2] = properties[pos[2]];
+         this.vertices[i][0] = properties[pos[0]];
+         this.vertices[i][1] = properties[pos[1]];
+         this.vertices[i][2] = properties[pos[2]];
 
-         normals[i][0] = hasNormals ? properties[normal[0]] : 0;
-         normals[i][1] = hasNormals ? properties[normal[1]] : 0;
-         normals[i][2] = hasNormals ? properties[normal[2]] : 0;
+         this.normals[i][0] = hasNormals ? properties[normal[0]] : 0;
+         this.normals[i][1] = hasNormals ? properties[normal[1]] : 0;
+         this.normals[i][2] = hasNormals ? properties[normal[2]] : 0;
       }
 
-      System.out.println("vertices read: " + numVertices);
+      System.out.println("vertices read: " + this.numVertices);
 
-      for (int i = 0; i < numFaces; i++) {
+      for (int i = 0; i < this.numFaces; i++) {
          dis.read(); // only supporting triangles
-         indices[i][0] = dis.readInt();
-         indices[i][1] = dis.readInt();
-         indices[i][2] = dis.readInt();
+         this.indices[i][0] = dis.readInt();
+         this.indices[i][1] = dis.readInt();
+         this.indices[i][2] = dis.readInt();
       }
 
-      System.out.println("faces read: " + numFaces);
+      System.out.println("faces read: " + this.numFaces);
    }
 
    @Override
-   public IntersectionInformation getIntersection(final Ray ray) {
-      if (boundingVolume.intersects(ray)) {
-         return boundingVolume.getChildIntersection(ray);
+   public IntersectionInformation getIntersection(final Ray ray, final int depth) {
+      if (this.boundingVolume.intersects(ray)) {
+         return this.boundingVolume.getChildIntersection(ray, depth);
       }
 
       return null;

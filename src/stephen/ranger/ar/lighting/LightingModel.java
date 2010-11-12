@@ -1,24 +1,20 @@
 package stephen.ranger.ar.lighting;
 
-import java.awt.Color;
-
-import javax.vecmath.Vector3f;
-
 import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 
 public class LightingModel {
-   protected Vector3f cameraPosition = new Vector3f();
+   protected Camera camera;
 
    public LightingModel() {
 
    }
 
-   public Color getPixelColor(final IntersectionInformation info, final Camera camera) {
-      return info.intersectionObject.getColor(info);
+   public float[] getPixelColor(final IntersectionInformation info, final int depth) {
+      return info.intersectionObject.getColor(info, this.camera, depth);
    }
 
-   public void setCameraPosition(final float[] position) {
-      cameraPosition = new Vector3f(position);
+   public void setCamera(final Camera camera) {
+      this.camera = camera;
    }
 }

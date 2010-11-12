@@ -1,10 +1,8 @@
 package stephen.ranger.ar.bounds;
 
-import java.awt.Color;
-
 import javax.vecmath.Vector3f;
 
-import stephen.ranger.ar.ColorInformation;
+import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.Ray;
@@ -23,8 +21,8 @@ public class BoundingSphere extends BoundingVolume {
    }
 
    @Override
-   public IntersectionInformation getChildIntersection(final Ray ray) {
-      return this.intersects(ray) ? this.child.getIntersection(ray) : null;
+   public IntersectionInformation getChildIntersection(final Ray ray, final int depth) {
+      return this.intersects(ray) ? this.child.getIntersection(ray, depth) : null;
    }
 
    @Override
@@ -113,12 +111,32 @@ public class BoundingSphere extends BoundingVolume {
    }
 
    @Override
-   public Color getColor(final IntersectionInformation info) {
-      return this.child.getColor(info.intersection);
+   public float[] getColor(final IntersectionInformation info, final Camera camera, final int depth) {
+      return this.child.getColor(info, camera, depth);
    }
 
    @Override
-   public ColorInformation getColorInformation(final IntersectionInformation info) {
-      return this.child.colorInfo;
+   public float[] getEmission() {
+      return this.child.getEmission();
+   }
+
+   @Override
+   public float[] getDiffuse() {
+      return this.child.getDiffuse();
+   }
+
+   @Override
+   public float[] getSpecular() {
+      return this.child.getSpecular();
+   }
+
+   @Override
+   public float[] getAmbient() {
+      return this.child.getAmbient();
+   }
+
+   @Override
+   public float getShininess() {
+      return this.child.getShininess();
    }
 }

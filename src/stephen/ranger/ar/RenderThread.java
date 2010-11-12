@@ -40,64 +40,40 @@ public class RenderThread extends Thread {
       float centerX, centerY, xmin, ymin;
       final Random random = new Random();
       IntersectionInformation closest = null;
-      final float[][] colors = new float[camera.multiSamples][];
+      final float[][] colors = new float[this.camera.multiSamples][];
       final long startTime = System.nanoTime();
 
-      for (int x = xPos; x < xPos + xSpan; x++) {
-         for (int y = yPos; y < yPos + ySpan; y++) {
-            centerX = xStart + xInc * x;
-            centerY = yStart - yInc * y;
-            xmin = centerX - xInc / 2f;
-            ymin = centerY - yInc / 2f;
+      for (int x = this.xPos; x < this.xPos + this.xSpan; x++) {
+         for (int y = this.yPos; y < this.yPos + this.ySpan; y++) {
+            centerX = this.xStart + this.xInc * x;
+            centerY = this.yStart - this.yInc * y;
+            xmin = centerX - this.xInc / 2f;
+            ymin = centerY - this.yInc / 2f;
 
-            for (int i = 0; i < camera.multiSamples; i++) {
-               viewportDirection.x = i == 0 ? centerX : random.nextFloat() * xInc + xmin;
-               viewportDirection.y = i == 0 ? centerY : random.nextFloat() * yInc + ymin;
-               viewportDirection.z = -camera.nearPlaneDistance;
-               camera.rotation.transform(viewportDirection);
+            for (int i = 0; i < this.camera.multiSamples; i++) {
+               viewportDirection.x = i == 0 ? centerX : random.nextFloat() * this.xInc + xmin;
+               viewportDirection.y = i == 0 ? centerY : random.nextFloat() * this.yInc + ymin;
+               viewportDirection.z = -this.camera.nearPlaneDistance;
+               this.camera.rotation.transform(viewportDirection);
                viewportDirection.normalize();
 
-               closest = camera.getClosestIntersection(null, camera.origin, viewportDirection);
+               closest = this.camera.getClosestIntersection(null, this.camera.origin, viewportDirection, 0);
 
                if (closest != null) {
-                  final ColorInformation colorInfo = closest.intersectionObject.getColorInformation(closest);
-
-                  if (colorInfo instanceof BRDFMaterial) {
-                     colors[i] = closest.intersectionObject.getColor(closest).getColorComponents(new float[3]);
-                     final float luminance = ((BRDFMaterial) colorInfo).getBRDFLuminocity(closest, camera);
-                     colors[i][0] = luminance * colors[i][0];
-                     colors[i][1] = luminance * colors[i][1];
-                     colors[i][2] = luminance * colors[i][2];
-                  } else {
-                     colors[i] = camera.lightingModel.getPixelColor(closest, camera).getColorComponents(new float[3]);
-
-                     if (colorInfo.isMirror) {
-                        final Vector3f V = new Vector3f(closest.intersection);
-                        V.sub(camera.origin);
-                        V.normalize();
-
-                        final IntersectionInformation mirrorInfo = camera.getClosestIntersection(closest.intersectionObject, closest.intersection, RTStatics.getReflectionDirection(closest, V));
-                        final float[] mirrorColor = mirrorInfo == null ? camera.light.ambient.getColorComponents(new float[3]) : mirrorInfo.intersectionObject.getColor(mirrorInfo).getColorComponents(
-                              new float[3]);
-
-                        colors[i][0] = colors[i][0] * mirrorColor[0];
-                        colors[i][1] = colors[i][1] * mirrorColor[1];
-                        colors[i][2] = colors[i][2] * mirrorColor[2];
-                     }
-                  }
+                  colors[i] = this.camera.lightingModel.getPixelColor(closest, 0);
                } else {
-                  colors[i] = camera.light.ambient.getColorComponents(new float[3]);
+                  colors[i] = this.camera.light.ambient.getColorComponents(new float[3]);
                }
             }
 
-            camera.setPixel(x, y, RTStatics.computeColorAverage(colors));
+            this.camera.setPixel(x, y, RTStatics.computeColorAverage(colors));
          }
 
-         RTStatics.incrementProgressBarValue(ySpan);
+         RTStatics.incrementProgressBarValue(this.ySpan);
       }
 
       final long endTime = System.nanoTime();
-      listener.actionPerformed(new ActionEvent(this, nodePosition, Double.toString((endTime - startTime) / 1000000000.)));
+      this.listener.actionPerformed(new ActionEvent(this, this.nodePosition, Double.toString((endTime - startTime) / 1000000000.)));
    }
 
    //   private IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction) {
