@@ -19,7 +19,8 @@ public class CheckerboardMaterial extends ColorInformation {
    }
 
    @Override
-   public void getMaterialColor(final float[] returnColor, final Camera camera, final IntersectionInformation info, final int depth) {
+   public float[] getMaterialColor(final Camera camera, final IntersectionInformation info, final int depth) {
+      final float[] returnColor = new float[3];
       final float[][] minMax = info.intersectionObject.getMinMax();
 
       final float xSpan = minMax[1][0] - minMax[0][0];
@@ -30,8 +31,8 @@ public class CheckerboardMaterial extends ColorInformation {
       final float yDist = info.intersection.y - minMax[0][1];
       final float zDist = info.intersection.z - minMax[0][2];
 
-      if ((xDist < 0) || (yDist < 0) || (zDist < 0) || (xDist > xSpan) || (yDist > ySpan) || (zDist > zSpan)) {
-         return;
+      if ((xDist > 0) || (yDist < 0) || (zDist < 0) || (xDist > xSpan) || (yDist > ySpan) || (zDist > zSpan)) {
+         return new float[3];
       }
 
       final int xCell = (int) Math.floor(xDist / this.cellWidth);
@@ -43,5 +44,7 @@ public class CheckerboardMaterial extends ColorInformation {
       } else {
          this.color2.getColorComponents(returnColor);
       }
+
+      return returnColor;
    }
 }

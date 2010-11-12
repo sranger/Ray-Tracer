@@ -32,8 +32,7 @@ public class ColorInformation {
       this(Color.black, diffuse, diffuse, diffuse, shininess);
    }
 
-   public void getMaterialColor(final float[] returnColor, final Camera camera, final IntersectionInformation info, final int depth) {
-      this.diffuse.getColorComponents(returnColor);
-      return;
+   public float[] getMaterialColor(final Camera camera, final IntersectionInformation info, final int depth) {
+      return this.diffuse.getColorComponents(new float[3]);
    }
 }

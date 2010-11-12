@@ -156,11 +156,13 @@ public class BRDFMaterial extends ColorInformation {
    }
 
    @Override
-   public void getMaterialColor(final float[] returnColor, final Camera camera, final IntersectionInformation info, final int depth) {
-      this.diffuse.getColorComponents(returnColor);
+   public float[] getMaterialColor(final Camera camera, final IntersectionInformation info, final int depth) {
+      final float[] returnColor = this.diffuse.getColorComponents(new float[3]);
       final float luminance = this.getBRDFLuminocity(info, camera);
       returnColor[0] *= luminance;
       returnColor[1] *= luminance;
       returnColor[2] *= luminance;
+
+      return returnColor;
    }
 }

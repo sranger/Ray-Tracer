@@ -76,10 +76,7 @@ public class KDTree extends BoundingVolume {
 
    @Override
    public float[] getColor(final IntersectionInformation info, final Camera camera, final int depth) {
-      final float[] returnColor = new float[3];
-      this.colorInfo.getMaterialColor(returnColor, camera, info, depth);
-
-      return returnColor;
+      return this.colorInfo.getMaterialColor(camera, info, depth);
    }
 
    @Override

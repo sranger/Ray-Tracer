@@ -22,27 +22,27 @@ public class RefractionMaterial extends ColorInformation {
    public final float refractionIndex;
 
    public RefractionMaterial(final Color diffuse, final float refractionIndex) {
-      super(diffuse);
+      super(diffuse, 100);
 
       this.refractionIndex = refractionIndex;
    }
 
    @Override
-   public void getMaterialColor(final float[] returnColor, final Camera camera, final IntersectionInformation info, final int depth) {
+   public float[] getMaterialColor(final Camera camera, final IntersectionInformation info, final int depth) {
       if (info == null) {
-         System.arraycopy(camera.light.ambient.getColorComponents(new float[3]), 0, returnColor, 0, 3);
+         return camera.light.ambient.getColorComponents(new float[3]);
       } else {
          // if n.dot(d) > 0, then direction is coming from behind the face (out the same direction as the normal)
          final float rayDir = info.normal.dot(info.ray.direction);
          final Vector3f refractionDirection = this.getRefractionDirection(info, (rayDir > 0) ? this.refractionIndex : INDEX_OF_AIR, (rayDir > 0) ? INDEX_OF_AIR : this.refractionIndex);
-         final IntersectionInformation closest = (refractionDirection == null) ? null : camera.getClosestIntersection(null, info.intersection, refractionDirection, depth + 1);
+         final IntersectionInformation closest = (refractionDirection == null) ? null : camera.getClosestIntersection(info.intersectionObject, info.intersection, refractionDirection, depth + 1);
 
          if (closest == null) {
-            System.arraycopy(camera.light.ambient.getColorComponents(new float[3]), 0, returnColor, 0, 3);
+            return camera.light.ambient.getColorComponents(new float[3]);
          } else {
-            System.arraycopy(closest.intersectionObject.getColor(closest, camera, depth + 1), 0, returnColor, 0, 3);
+            final float[] returnColor = closest.intersectionObject.getColor(closest, camera, depth + 1);
 
-            if (info.normal.dot(info.ray.direction) > 0f) {
+            if (true) {// info.normal.dot(info.ray.direction) > 0f) {
                final float distance = RTStatics.getDistance(info.intersection, closest.intersection);
                final float[] color = info.intersectionObject.getDiffuse();
                color[0] *= (0.15f * -distance);
@@ -53,6 +53,8 @@ public class RefractionMaterial extends ColorInformation {
                returnColor[1] *= Math.exp(color[1]);
                returnColor[2] *= Math.exp(color[2]);
             }
+
+            return returnColor;
          }
       }
    }
@@ -62,11 +64,14 @@ public class RefractionMaterial extends ColorInformation {
          return null;
       }
 
+      final Vector3f rayDir = new Vector3f(info.ray.direction);
+      rayDir.scale(-1f);
+
       final double n1 = originIndex;
       final double n2 = destinationIndex;
 
       final double n = n1 / n2;
-      final double cosI = info.normal.dot(info.ray.direction);
+      final double cosI = info.normal.dot(rayDir);
       final double sinT2 = n * n * (1.0 - cosI * cosI);
 
       if (sinT2 > 1.0) {
@@ -78,7 +83,7 @@ public class RefractionMaterial extends ColorInformation {
          return this.getRefractionDirection(info, destinationIndex, originIndex);
       }
 
-      final Vector3f incident = new Vector3f(info.ray.direction);
+      final Vector3f incident = new Vector3f(rayDir);
       incident.scale((float) n);
 
       final Vector3f normal = new Vector3f(info.normal);

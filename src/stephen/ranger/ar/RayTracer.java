@@ -122,8 +122,11 @@ public class RayTracer {
       final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25), new Vector3f(50, 0, -100) }, new CheckerboardMaterial(
             Color.yellow, Color.red, 10f, 10f, 10f));
 
-      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -15, 0), useBRDFs ? new BRDFMaterial(15, Color.white) : new RefractionMaterial(Color.blue, RefractionMaterial.INDEX_OF_AIR));
-      final Sphere sphere2 = new Sphere(9, new Vector3f(0, -12, -20), useBRDFs ? new BRDFMaterial(16, Color.cyan) : new ColorInformation(Color.white));
+      final ReflectionMaterial blue = new ReflectionMaterial(Color.blue);
+      final RefractionMaterial glass = new RefractionMaterial(Color.gray, RefractionMaterial.INDEX_OF_GLASS);
+
+      final Sphere sphere1 = new Sphere(5, new Vector3f(0, -12, 0), useBRDFs ? new BRDFMaterial(15, Color.white) : glass);
+      final Sphere sphere2 = new Sphere(3, new Vector3f(5, -15, -10), useBRDFs ? new BRDFMaterial(16, Color.cyan) : blue);
 
       return new BoundingVolume[] { plane.getBoundingVolume(), sphere1.getBoundingVolume(), sphere2.getBoundingVolume() };
 

@@ -41,7 +41,7 @@ public class PhongLightingModel extends LightingModel {
       V.sub(info.ray.direction);
 
       // r = L - 2f * N * L.dot(N)
-      final Vector3f R = RTStatics.getReflectionDirection(info, L);
+      final Vector3f R = RTStatics.getReflectionDirection(info.normal, L);
       final double LdotN = L.dot(N);
       final double RdotVexpA = Math.pow(V.dot(R), a);
 

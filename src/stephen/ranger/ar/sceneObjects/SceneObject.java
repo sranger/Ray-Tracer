@@ -66,10 +66,7 @@ public abstract class SceneObject {
          return this.getDiffuse();
       }
 
-      final float[] returnColor = new float[3];
-      this.colorInfo.getMaterialColor(returnColor, camera, info, depth);
-
-      return returnColor;
+      return this.colorInfo.getMaterialColor(camera, info, depth);
    }
 
    public float[] getEmission() {

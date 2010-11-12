@@ -203,8 +203,8 @@ public class Camera {
          if (((mirrorObject == null) || !mirrorObject.equals(object)) && object.intersects(ray)) {
             temp = object.getChildIntersection(ray, depth + 1);
 
-            if ((temp != null) && (temp.w > RTStatics.EPSILON)) {
-               closest = closest == null ? temp : closest.w <= temp.w ? closest : temp;
+            if ((temp != null) && (temp.w > RTStatics.EPSILON) && ((closest == null) || (temp.w < closest.w))) {
+               closest = temp;
             }
          }
       }

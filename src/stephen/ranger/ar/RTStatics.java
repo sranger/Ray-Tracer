@@ -74,8 +74,8 @@ public class RTStatics {
       return R;
    }
 
-   public static Vector3f getReflectionDirection(final IntersectionInformation info, final Vector3f dir) {
-      return getReflectionDirection(info.normal, dir);
+   public static Vector3f getReflectionDirection(final IntersectionInformation info) {
+      return getReflectionDirection(info.normal, info.ray.direction);
    }
 
    public static float leastPositive(final float i, final float j) {

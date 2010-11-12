@@ -1,6 +1,8 @@
 package stephen.ranger.ar.lighting;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -54,6 +56,13 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       final Photon[] photons = this.photons.getPhotonsInRange(info, RTStatics.COLLECTION_RANGE);
       final float[][] total = new float[3][3];
       final int[] counts = new int[3];
+
+      Arrays.sort(photons, new Comparator<Photon>() {
+         @Override
+         public int compare(final Photon o1, final Photon o2) {
+            return 0;
+         }
+      });
 
       if (photons.length > 0) {
          for (int i = 0; i < photons.length; i++) {
@@ -118,7 +127,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
                   // emissionColor[2] *= color[2];
 
                   intensity *= (1f / RTStatics.getDistance(info.intersection, origin));
-                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, intensity, value));
+                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x, dir.y, dir.z }, intensity, value));
 
                   origin = info.intersection;
                   dir = RTStatics.getReflectionDirection(info.normal, dir);
