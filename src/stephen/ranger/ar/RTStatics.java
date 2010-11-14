@@ -25,13 +25,12 @@ public class RTStatics {
 
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
-
    // photon mapping settings
    public static final float COLLECTION_RANGE = 25f;
-   public static final int NUM_REFLECTIONS = 5;
-   public static final int NUM_PHOTONS = 5000;
-   public static final int COLLECTION_COUNT_THRESHOLD = 10;
-   public static final float STARTING_INTENSITY = 250f;
+   public static final int NUM_REFLECTIONS = 2;
+   public static final int NUM_PHOTONS = 50000;
+   public static final int COLLECTION_COUNT_THRESHOLD = 5;
+   public static final float STARTING_INTENSITY = 100f;
    // public static final float PHOTON_FALLOFF = 0.9f;
    public static final int PHOTON_COLLECTION_GRID_SIZE = 5;
 
@@ -47,7 +46,7 @@ public class RTStatics {
       }
 
       public SeparationAxis getNextAxis() {
-         return this.equals(X) ? Y : this.equals(Y) ? Z : X;
+         return equals(X) ? Y : equals(Y) ? Z : X;
       }
    }
 
@@ -81,11 +80,11 @@ public class RTStatics {
    public static float leastPositive(final float i, final float j) {
       float retVal;
 
-      if ((i < 0) && (j < 0)) {
+      if (i < 0 && j < 0) {
          retVal = -1;
-      } else if ((i < 0) && (j > 0)) {
+      } else if (i < 0 && j > 0) {
          retVal = j;
-      } else if ((i > 0) && (j < 0)) {
+      } else if (i > 0 && j < 0) {
          retVal = i;
       } else {
          if (i < j) {
@@ -121,7 +120,7 @@ public class RTStatics {
          tymax = (minMax[0][1] - r.origin.y) * divy;
       }
 
-      if ((txmin > tymax) || (tymin > txmax)) {
+      if (txmin > tymax || tymin > txmax) {
          return false;
       }
 
@@ -141,7 +140,7 @@ public class RTStatics {
          tzmax = (minMax[0][2] - r.origin.z) * divz;
       }
 
-      if ((txmin > tzmax) || (tzmin > txmax)) {
+      if (txmin > tzmax || tzmin > txmax) {
          return false;
       }
 
@@ -153,7 +152,7 @@ public class RTStatics {
          txmax = tzmax;
       }
 
-      return (txmin < RTStatics.FAR_PLANE) && (txmax > RTStatics.NEAR_PLANE);
+      return txmin < RTStatics.FAR_PLANE && txmax > RTStatics.NEAR_PLANE;
    }
 
    /**
@@ -447,25 +446,25 @@ public class RTStatics {
       float[] rgb = new float[3];
 
       switch (i) {
-         case 6:
-         case 0:
-            rgb = new float[] { v, n, m };
-            break;
-         case 1:
-            rgb = new float[] { n, v, m };
-            break;
-         case 2:
-            rgb = new float[] { m, v, n };
-            break;
-         case 3:
-            rgb = new float[] { m, n, v };
-            break;
-         case 4:
-            rgb = new float[] { n, m, v };
-            break;
-         case 5:
-            rgb = new float[] { v, m, n };
-            break;
+      case 6:
+      case 0:
+         rgb = new float[] { v, n, m };
+         break;
+      case 1:
+         rgb = new float[] { n, v, m };
+         break;
+      case 2:
+         rgb = new float[] { m, v, n };
+         break;
+      case 3:
+         rgb = new float[] { m, n, v };
+         break;
+      case 4:
+         rgb = new float[] { n, m, v };
+         break;
+      case 5:
+         rgb = new float[] { v, m, n };
+         break;
       }
 
       rgb[0] = Math.min(1f, Math.max(0f, rgb[0]));
@@ -483,18 +482,18 @@ public class RTStatics {
     * @return
     */
    public static boolean aabbIntersection(final float[][] minMax, final float[][] minMax2) {
-      if ((minMax[0][0] >= minMax2[0][0]) && (minMax[1][0] <= minMax2[1][0]) && (minMax[0][1] >= minMax2[0][1]) && (minMax[1][1] <= minMax2[1][1]) && (minMax[0][2] >= minMax2[0][2])
-            && (minMax[1][2] <= minMax2[1][2])) {
+      if (minMax[0][0] >= minMax2[0][0] && minMax[1][0] <= minMax2[1][0] && minMax[0][1] >= minMax2[0][1] && minMax[1][1] <= minMax2[1][1] && minMax[0][2] >= minMax2[0][2]
+            && minMax[1][2] <= minMax2[1][2]) {
          return true;
       }
 
-      if ((minMax2[1][0] < minMax[0][0]) || (minMax2[0][0] > minMax[1][0])) {
+      if (minMax2[1][0] < minMax[0][0] || minMax2[0][0] > minMax[1][0]) {
          return false;
       }
-      if ((minMax2[1][1] < minMax[0][1]) || (minMax2[0][1] > minMax[1][1])) {
+      if (minMax2[1][1] < minMax[0][1] || minMax2[0][1] > minMax[1][1]) {
          return false;
       }
-      if ((minMax2[1][2] < minMax[0][2]) || (minMax2[0][2] > minMax[1][2])) {
+      if (minMax2[1][2] < minMax[0][2] || minMax2[0][2] > minMax[1][2]) {
          return false;
       }
 
@@ -503,5 +502,69 @@ public class RTStatics {
 
    public static float[][] getMinMax(final float[] point, final float range) {
       return new float[][] { { point[0] - range, point[1] - range, point[2] - range }, { point[0] + range, point[1] + range, point[2] + range } };
+   }
+
+   /**
+    * http://en.wikipedia.org/wiki/Quicksort
+      <pre>
+      {@code
+      function quicksort(array, left, right)
+         var pivot, leftIdx = left, rightIdx = right
+         if right - left > 0
+             pivot = (left + right) / 2
+             while leftIdx <= pivot and rightIdx >= pivot
+                 while array[leftIdx] < array[pivot] and leftIdx <= pivot
+                     leftIdx = leftIdx + 1
+                 while array[rightIdx] > array[pivot] and rightIdx >= pivot
+                     rightIdx = rightIdx - 1;
+                 swap array[leftIdx] with array[rightIdx]
+                 leftIdx = leftIdx + 1
+                 rightIdx = rightIdx - 1
+                 if leftIdx - 1 == pivot
+                     pivot = rightIdx = rightIdx + 1
+                 else if rightIdx + 1 == pivot
+                     pivot = leftIdx = leftIdx - 1
+             quicksort(array, left, pivot - 1)
+             quicksort(array, pivot + 1, right)
+      }
+      </pre>
+    */
+   public static void quicksort(final Photon[] photons, final int[] indices, final int left, final int right, final SeparationAxis axis) {
+      int pivot, leftIdx = left, rightIdx = right, temp;
+
+      if (right - left > 0) {
+         pivot = (left + right) / 2;
+
+         while (leftIdx <= pivot && rightIdx >= pivot) {
+            while (compare(photons[indices[leftIdx]], photons[indices[pivot]], axis) < 0 && leftIdx <= pivot) {
+               leftIdx++;
+            }
+            while (compare(photons[indices[rightIdx]], photons[indices[pivot]], axis) > 0 && rightIdx >= pivot) {
+               rightIdx--;
+            }
+
+            temp = indices[leftIdx];
+            indices[leftIdx] = indices[rightIdx];
+            indices[rightIdx] = temp;
+
+            leftIdx++;
+            rightIdx--;
+
+            if (leftIdx - 1 == pivot) {
+               rightIdx++;
+               pivot = rightIdx;
+            } else if (rightIdx + 1 == pivot) {
+               leftIdx--;
+               pivot = leftIdx;
+            }
+         }
+
+         quicksort(photons, indices, left, pivot - 1, axis);
+         quicksort(photons, indices, pivot + 1, right, axis);
+      }
+   }
+
+   public static int compare(final Photon o1, final Photon o2, final SeparationAxis axis) {
+      return o1.location[axis.pos] < o2.location[axis.pos] ? -1 : o2.location[axis.pos] < o1.location[axis.pos] ? 1 : 0;
    }
 }

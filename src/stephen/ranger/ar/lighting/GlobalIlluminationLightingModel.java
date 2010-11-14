@@ -1,8 +1,6 @@
 package stephen.ranger.ar.lighting;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -13,8 +11,8 @@ import stephen.ranger.ar.Camera;
 import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.photons.Photon;
-import stephen.ranger.ar.photons.Photon.LightAttribution;
 import stephen.ranger.ar.photons.PhotonTree;
+import stephen.ranger.ar.photons.Photon.LightAttribution;
 
 public class GlobalIlluminationLightingModel extends LightingModel {
 
@@ -29,15 +27,15 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       this.camera = camera;
 
       final long startTimePhotonMap = System.nanoTime();
-      this.photons = this.computePhotonMap();
+      photons = computePhotonMap();
       final long endTimePhotonMap = System.nanoTime();
       System.out.println("Created Photon Map in " + (endTimePhotonMap - startTimePhotonMap) / 1000000000. + " seconds");
    }
 
    @Override
    public float[] getPixelColor(final IntersectionInformation info, final int depth) {
-      final float[][] luminocity = this.getPhotonMapLuminocity(info);
-      final float[] color = info.intersectionObject.getColor(info, this.camera, depth);
+      final float[][] luminocity = getPhotonMapLuminocity(info);
+      final float[] color = info.intersectionObject.getColor(info, camera, depth);
 
       final float[] diffuse = new float[3];
       diffuse[0] = luminocity[LightAttribution.DIFFUSE.cell][0] * color[0];
@@ -53,27 +51,22 @@ public class GlobalIlluminationLightingModel extends LightingModel {
    }
 
    private float[][] getPhotonMapLuminocity(final IntersectionInformation info) {
-      final Photon[] photons = this.photons.getPhotonsInRange(info, RTStatics.COLLECTION_RANGE);
+      final int[] indices = photons.rangeSearch(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_RANGE);
+      //      final int[] indices = photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_COUNT_THRESHOLD);
       final float[][] total = new float[3][3];
       final int[] counts = new int[3];
 
-      Arrays.sort(photons, new Comparator<Photon>() {
-         @Override
-         public int compare(final Photon o1, final Photon o2) {
-            return 0;
-         }
-      });
-
-      if (photons.length > 0) {
-         for (int i = 0; i < photons.length; i++) {
+      if (indices.length > 0) {
+         for (final int indice : indices) {
             // take into consideration falloff from intersection to photon location
             final float invDistance = 1f;// / RTStatics.getDistance(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, photons[i].location);
+            final Photon photon = photons.get(indice);
 
-            total[photons[i].value.cell][0] += photons[i].intensity * invDistance * photons[i].color[0];
-            total[photons[i].value.cell][1] += photons[i].intensity * invDistance * photons[i].color[1];
-            total[photons[i].value.cell][2] += photons[i].intensity * invDistance * photons[i].color[2];
+            total[photon.value.cell][0] += photon.intensity * invDistance * photon.color[0];
+            total[photon.value.cell][1] += photon.intensity * invDistance * photon.color[1];
+            total[photon.value.cell][2] += photon.intensity * invDistance * photon.color[2];
 
-            counts[photons[i].value.cell]++;
+            counts[photon.value.cell]++;
          }
 
          total[LightAttribution.DIFFUSE.cell][0] /= counts[LightAttribution.DIFFUSE.cell];
@@ -90,7 +83,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
    protected PhotonTree computePhotonMap() {
       final Vector3f originDirection = new Vector3f();
-      originDirection.sub(this.camera.light.origin);
+      originDirection.sub(camera.light.origin);
       originDirection.normalize();
       final List<Photon> photons = new ArrayList<Photon>();
 
@@ -110,23 +103,23 @@ public class GlobalIlluminationLightingModel extends LightingModel {
          Vector3f dir = new Vector3f(0, 0, 1);
          rotation.transform(dir);
          dir.normalize();
-         Vector3f origin = new Vector3f(this.camera.light.origin);
+         Vector3f origin = new Vector3f(camera.light.origin);
          float intensity = RTStatics.STARTING_INTENSITY;
-         final float[] emissionColor = this.camera.light.emission.getColorComponents(new float[3]);
+         final float[] emissionColor = camera.light.emission.getColorComponents(new float[3]);
 
          for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
             final float chance = random.nextFloat();
-            final LightAttribution value = (chance < 0.5f) ? LightAttribution.DIFFUSE : (chance < 0.75f) ? LightAttribution.SPECULAR : null;
+            final LightAttribution value = chance < 0.5f ? LightAttribution.DIFFUSE : chance < 0.75f ? LightAttribution.SPECULAR : null;
 
             if (value != null) {
-               final IntersectionInformation info = this.camera.getClosestIntersection(null, origin, dir, 0);
+               final IntersectionInformation info = camera.getClosestIntersection(null, origin, dir, 0);
                if (info != null) {
                   // final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
                   // emissionColor[0] *= color[0];
                   // emissionColor[1] *= color[1];
                   // emissionColor[2] *= color[2];
 
-                  intensity *= (1f / RTStatics.getDistance(info.intersection, origin));
+                  intensity *= Math.toDegrees(info.normal.dot(dir)) / RTStatics.getDistance(info.intersection, origin);
                   photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x, dir.y, dir.z }, intensity, value));
 
                   origin = info.intersection;

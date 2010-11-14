@@ -35,7 +35,7 @@ import stephen.ranger.ar.RayTracer.Scenes;
 
 public class RayTracerInterface extends JFrame {
    public RayTracerInterface(final RayTracer rayTracer) {
-      this.setTitle("Ray-Tracer");
+      setTitle("Ray-Tracer");
 
       final JPanel sidePanel = new JPanel();
       sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.PAGE_AXIS));
@@ -82,7 +82,7 @@ public class RayTracerInterface extends JFrame {
          @Override
          public void paint(final Graphics g) {
             if (rayTracer.camera != null) {
-               final BufferedImage image = (useNormalizedImageCheckBox.isSelected()) ? rayTracer.camera.getNormalizedImage() : rayTracer.camera.getImage();
+               final BufferedImage image = useNormalizedImageCheckBox.isSelected() ? rayTracer.camera.getNormalizedImage() : rayTracer.camera.getImage();
                g.drawImage(image, 0, 0, null);
                g.finalize();
             }
@@ -99,7 +99,7 @@ public class RayTracerInterface extends JFrame {
       final JScrollPane imagePane = new JScrollPane(iconLabel);
       imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
       imagePane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-      imagePane.setPreferredSize(new Dimension(1050, 1050));
+      imagePane.setPreferredSize(new Dimension(1050, 540));
 
       final JButton renderButton = new JButton("Render Scene");
       final JButton closeButton = new JButton("Close");
@@ -128,8 +128,8 @@ public class RayTracerInterface extends JFrame {
             final ActionListener listener = new ActionListener() {
                @Override
                public void actionPerformed(final ActionEvent event) {
-                  rayTracer.camera = new Camera(rayTracer.currentScene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(), RTStatics.NEAR_PLANE,
-                        (Integer) imageXField.getValue(), (Integer) imageYField.getValue());
+                  rayTracer.camera = new Camera(rayTracer.currentScene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(), RTStatics.NEAR_PLANE, (Integer) imageXField
+                        .getValue(), (Integer) imageYField.getValue());
                   rayTracer.camera.addActionListener(new ActionListener() {
                      @Override
                      public void actionPerformed(final ActionEvent event) {
@@ -188,7 +188,7 @@ public class RayTracerInterface extends JFrame {
             if (result == JFileChooser.APPROVE_OPTION) {
                final String path = fileChooser.getSelectedFile().getAbsolutePath();
 
-               rayTracer.camera.writeOutputFile(path.endsWith(".png") || path.endsWith(".jpg") ? path : path + ".png");
+               rayTracer.camera.writeOutputFile(path.endsWith(".png") || path.endsWith(".jpg") ? path : path + ".png", useNormalizedImageCheckBox.isSelected());
             }
          }
       });
@@ -256,13 +256,13 @@ public class RayTracerInterface extends JFrame {
       sidePanel.add(saveButton);
       sidePanel.add(checkboxPanel);
 
-      this.getContentPane().setLayout(new BorderLayout());
-      this.getContentPane().add(sidePanel, BorderLayout.WEST);
-      this.getContentPane().add(imagePanel, BorderLayout.CENTER);
-      this.getContentPane().add(scrollPane, BorderLayout.SOUTH);
+      getContentPane().setLayout(new BorderLayout());
+      getContentPane().add(sidePanel, BorderLayout.WEST);
+      getContentPane().add(imagePanel, BorderLayout.CENTER);
+      getContentPane().add(scrollPane, BorderLayout.SOUTH);
 
-      this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-      this.pack();
-      this.setVisible(true);
+      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+      pack();
+      setVisible(true);
    }
 }

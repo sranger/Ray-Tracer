@@ -20,13 +20,12 @@ import stephen.ranger.ar.sceneObjects.Sphere;
 import stephen.ranger.ar.sceneObjects.TriangleMesh;
 
 public class RayTracer {
-   // public static final String baseDir = "C:/Users/sano/Documents/";
-   public static final String baseDir = "D:/";
+   public static String baseDir = "D:/";
 
    public static enum Scenes {
       CORNELL_BOX_SPHERES("Cornell Box (spheres)"), CORNELL_BOX("Cornell Box"), CORNELL_BOX_PHONG("Cornell Box (Phong)"), WHITTED_SCENE("Whitted Scene"), WHITTED_SCENE_BRDF("Whitted Scene (BRDF)"), STANFORD_BUNNY(
-      "Stanford Bunny"), STANFORD_DRAGON("Stanford Dragon"), STANFORD_BUDDHA("Stanford Buddha"), XYZ_DRAGON("XYZ RGB Dragon"), XYZ_THAI_STATUE("XYZ RGB Thai Statue"), STANFORD_LUCY(
-      "Stanford Lucy");
+            "Stanford Bunny"), STANFORD_DRAGON("Stanford Dragon"), STANFORD_BUDDHA("Stanford Buddha"), XYZ_DRAGON("XYZ RGB Dragon"), XYZ_THAI_STATUE("XYZ RGB Thai Statue"), STANFORD_LUCY(
+            "Stanford Lucy");
 
       public final String title;
       private Scene scene = null;
@@ -36,16 +35,16 @@ public class RayTracer {
       }
 
       public Scene getScene(final boolean useKDTree) {
-         if(this.scene == null) {
-            this.scene = RayTracer.getScene(this, useKDTree);
+         if (scene == null) {
+            scene = RayTracer.getScene(this, useKDTree);
          }
 
-         return this.scene;
+         return scene;
       }
 
       @Override
       public String toString() {
-         return this.title;
+         return title;
       }
 
       public static void resetKDTreeMeshes() {
@@ -62,12 +61,23 @@ public class RayTracer {
 
    public Camera camera = null;
 
-   public RayTracer() {
+   public RayTracer(final String baseDir) {
+      RayTracer.baseDir = baseDir;
       new RayTracerInterface(this);
    }
 
    public static void main(final String[] args) {
-      new RayTracer();
+      if (!args[0].equals("")) {
+         final File baseDir = new File(args[0]);
+
+         if (baseDir.exists() && baseDir.isDirectory()) {
+            new RayTracer(args[0]);
+         } else {
+            System.err.println(baseDir.getAbsolutePath() + " must be a directory.");
+         }
+      } else {
+         System.err.println("The directory where the Stanford models reside must be set.");
+      }
    }
 
    private static final Scene getScene(final Scenes scene, final boolean useKDTree) {
@@ -94,7 +104,7 @@ public class RayTracer {
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 23f);
       } else if (scene.equals(Scenes.STANFORD_BUDDHA)) {
          final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/happy_recon/happy_vrip.ply"), new ColorInformation(Color.white), useKDTree)
-         .getBoundingVolume() };
+               .getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.STANFORD_LUCY)) {
          final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/lucy.ply"), new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
@@ -166,8 +176,8 @@ public class RayTracer {
             new Vector3f(box[0][0], box[1][1], box[1][2]) }, green);
 
       if (useSpheres) {
-         final Sphere s1 = new Sphere(82.5f, new Vector3f(-92f, -192.5f, -111.5f), (useWhittedMaterials) ? glass : blue);
-         final Sphere s2 = new Sphere(82.5f, new Vector3f(116.5f, -192.5f, 71.5f), (useWhittedMaterials) ? mirror : blue);
+         final Sphere s1 = new Sphere(82.5f, new Vector3f(-92f, -192.5f, -111.5f), useWhittedMaterials ? glass : blue);
+         final Sphere s2 = new Sphere(82.5f, new Vector3f(116.5f, -192.5f, 71.5f), useWhittedMaterials ? mirror : blue);
 
          return new BoundingVolume[] { floor.getBoundingVolume(), ceiling.getBoundingVolume(), back.getBoundingVolume(), front.getBoundingVolume(), left.getBoundingVolume(),
                right.getBoundingVolume(), s1.getBoundingVolume(), s2.getBoundingVolume() };
