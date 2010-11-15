@@ -23,9 +23,9 @@ public class RayTracer {
    public static String baseDir = "D:/";
 
    public static enum Scenes {
-      CORNELL_BOX_SPHERES("Cornell Box (spheres)"), CORNELL_BOX("Cornell Box"), CORNELL_BOX_PHONG("Cornell Box (Phong)"), WHITTED_SCENE("Whitted Scene"), WHITTED_SCENE_BRDF("Whitted Scene (BRDF)"), STANFORD_BUNNY(
-            "Stanford Bunny"), STANFORD_DRAGON("Stanford Dragon"), STANFORD_BUDDHA("Stanford Buddha"), XYZ_DRAGON("XYZ RGB Dragon"), XYZ_THAI_STATUE("XYZ RGB Thai Statue"), STANFORD_LUCY(
-            "Stanford Lucy");
+      CORNELL_BOX_SPHERES("Cornell Box (spheres)"), CORNELL_BOX("Cornell Box"), CORNELL_BOX_PHONG("Cornell Box (Phong)"), WHITTED_SCENE("Whitted Scene"), WHITTED_SCENE_BRDF(
+            "Whitted Scene (BRDF)"), STANFORD_BUNNY("Stanford Bunny"), STANFORD_DRAGON("Stanford Dragon"), STANFORD_BUDDHA("Stanford Buddha"), XYZ_DRAGON(
+            "XYZ RGB Dragon"), XYZ_THAI_STATUE("XYZ RGB Thai Statue"), STANFORD_LUCY("Stanford Lucy");
 
       public final String title;
       private Scene scene = null;
@@ -99,7 +99,7 @@ public class RayTracer {
       final Light light = new Light(new Vector3f(0, 100, 100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.9f, 1.0f));
       final Light light2 = new Light(new Vector3f(0, 100, -100), new Color(0.3f, 0.3f, 0.3f, 1.0f), new Color(0.5f, 0.5f, 0.9f, 1.0f));
       // final Light cornellLight = new Light(new Vector3f(278, 540, 0.5f), new Color(1f, 0.85f, 0.43f), new Color(1f, 0.85f, 0.43f));
-      final Light cornellLight = new Light(new Vector3f(0, 250, 0), new Color(0.75f, 0.75f, 0.75f), new Color(0.75f, 0.75f, 0.75f));
+      final Light cornellLight = new Light(new Vector3f(0, 270, 0), new Color(0.75f, 0.75f, 0.75f), new Color(0.75f, 0.75f, 0.75f));
 
       if (scene.equals(Scenes.WHITTED_SCENE)) {
          final BoundingVolume[] volumes = RayTracer.getWhittedObjects(false);
@@ -108,25 +108,28 @@ public class RayTracer {
          final BoundingVolume[] volumes = RayTracer.getWhittedObjects(true);
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new LightingModel(), 35f);
       } else if (scene.equals(Scenes.STANFORD_BUNNY)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/bunny/reconstruction/bun_zipper.ply"), new ColorInformation(Color.white), useKDTree)
-               .getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/bunny/reconstruction/bun_zipper.ply"),
+               new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 15f);
       } else if (scene.equals(Scenes.STANFORD_DRAGON)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/dragon_recon/dragon_vrip.ply"), new ColorInformation(new Color(0.9f, 0.9f, 0.9f, 1f)),
-               useKDTree).getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/dragon_recon/dragon_vrip.ply"),
+               new ColorInformation(new Color(0.9f, 0.9f, 0.9f, 1f)), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 23f);
       } else if (scene.equals(Scenes.STANFORD_BUDDHA)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/happy_recon/happy_vrip.ply"), new ColorInformation(Color.white), useKDTree)
-               .getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/happy_recon/happy_vrip.ply"),
+               new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.STANFORD_LUCY)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/lucy.ply"), new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/lucy.ply"), new ColorInformation(Color.white),
+               useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.XYZ_DRAGON)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/xyzrgb_dragon.ply"), new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/xyzrgb_dragon.ply"), new ColorInformation(
+               Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light2, new float[] { 220, 0, 0 }, new PhongLightingModel(light2, volumes), 20f);
       } else if (scene.equals(Scenes.XYZ_THAI_STATUE)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/xyzrgb_statuette.ply"), new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/xyzrgb_statuette.ply"), new ColorInformation(
+               Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.CORNELL_BOX)) {
          final BoundingVolume[] volumes = RayTracer.getCornellBox(false, false);
@@ -143,8 +146,8 @@ public class RayTracer {
    }
 
    private static final BoundingVolume[] getWhittedObjects(final boolean useBRDFs) {
-      final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25), new Vector3f(50, 0, -100) }, new CheckerboardMaterial(
-            Color.yellow, Color.red, 10f, 10f, 10f));
+      final Plane plane = new Plane(new Vector3f[] { new Vector3f(-50, 0, -100), new Vector3f(-50, -40, 25), new Vector3f(50, -40, 25),
+            new Vector3f(50, 0, -100) }, new CheckerboardMaterial(Color.yellow, Color.red, 10f, 10f, 10f));
 
       final ReflectionMaterial blue = new ReflectionMaterial(Color.blue);
       final RefractionMaterial glass = new RefractionMaterial(Color.gray, RefractionMaterial.INDEX_OF_GLASS);
@@ -175,41 +178,52 @@ public class RayTracer {
 
       final float[][] box = new float[][] { { -278, -275, -800 }, { 278, 275, 280 } };
 
-      final Plane floor = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[0][1], box[1][2]),
-            new Vector3f(box[1][0], box[0][1], box[1][2]) }, white);
-      final Plane ceiling = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[1][1], box[0][2]), new Vector3f(box[1][0], box[1][1], box[1][2]), new Vector3f(box[0][0], box[1][1], box[1][2]),
-            new Vector3f(box[0][0], box[1][1], box[0][2]) }, white);
-      final Plane back = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[1][2]), new Vector3f(box[0][0], box[0][1], box[1][2]), new Vector3f(box[0][0], box[1][1], box[1][2]),
-            new Vector3f(box[1][0], box[1][1], box[1][2]) }, white);
-      final Plane front = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[1][1], box[0][2]),
-            new Vector3f(box[1][0], box[1][1], box[0][2]) }, white);
-      final Plane left = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[0][2]), new Vector3f(box[1][0], box[0][1], box[1][2]), new Vector3f(box[1][0], box[1][1], box[1][2]),
-            new Vector3f(box[1][0], box[1][1], box[0][2]) }, red);
-      final Plane right = new Plane(new Vector3f[] { new Vector3f(box[0][0], box[0][1], box[1][2]), new Vector3f(box[0][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[1][1], box[0][2]),
-            new Vector3f(box[0][0], box[1][1], box[1][2]) }, green);
+      final Plane floor = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[0][1], box[0][2]),
+            new Vector3f(box[0][0], box[0][1], box[1][2]), new Vector3f(box[1][0], box[0][1], box[1][2]) }, white);
+      final Plane ceiling = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[1][1], box[0][2]), new Vector3f(box[1][0], box[1][1], box[1][2]),
+            new Vector3f(box[0][0], box[1][1], box[1][2]), new Vector3f(box[0][0], box[1][1], box[0][2]) }, white);
+      final Plane back = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[1][2]), new Vector3f(box[0][0], box[0][1], box[1][2]),
+            new Vector3f(box[0][0], box[1][1], box[1][2]), new Vector3f(box[1][0], box[1][1], box[1][2]) }, white);
+      final Plane front = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[0][2]), new Vector3f(box[0][0], box[0][1], box[0][2]),
+            new Vector3f(box[0][0], box[1][1], box[0][2]), new Vector3f(box[1][0], box[1][1], box[0][2]) }, white);
+      final Plane left = new Plane(new Vector3f[] { new Vector3f(box[1][0], box[0][1], box[0][2]), new Vector3f(box[1][0], box[0][1], box[1][2]),
+            new Vector3f(box[1][0], box[1][1], box[1][2]), new Vector3f(box[1][0], box[1][1], box[0][2]) }, red);
+      final Plane right = new Plane(new Vector3f[] { new Vector3f(box[0][0], box[0][1], box[1][2]), new Vector3f(box[0][0], box[0][1], box[0][2]),
+            new Vector3f(box[0][0], box[1][1], box[0][2]), new Vector3f(box[0][0], box[1][1], box[1][2]) }, green);
 
       if (useSpheres) {
          final Sphere s1 = new Sphere(82.5f, new Vector3f(-92f, -192.5f, -111.5f), useWhittedMaterials ? glass : blue);
          final Sphere s2 = new Sphere(82.5f, new Vector3f(116.5f, -192.5f, 71.5f), useWhittedMaterials ? mirror : blue);
 
-         return new BoundingVolume[] { floor.getBoundingVolume(), ceiling.getBoundingVolume(), back.getBoundingVolume(), front.getBoundingVolume(), left.getBoundingVolume(),
-               right.getBoundingVolume(), s1.getBoundingVolume(), s2.getBoundingVolume() };
+         return new BoundingVolume[] { floor.getBoundingVolume(), ceiling.getBoundingVolume(), back.getBoundingVolume(), front.getBoundingVolume(),
+               left.getBoundingVolume(), right.getBoundingVolume(), s1.getBoundingVolume(), s2.getBoundingVolume() };
       } else {
-         final Plane small1 = new Plane(new Vector3f[] { new Vector3f(-148, -110, -215), new Vector3f(-196, -110, -55), new Vector3f(-32, -110, -8), new Vector3f(12, -110, -166) }, white2);
-         final Plane small2 = new Plane(new Vector3f[] { new Vector3f(12, -275, -166), new Vector3f(12, -110, -166), new Vector3f(-32, -110, -8), new Vector3f(-32, -275, -8) }, white2);
-         final Plane small3 = new Plane(new Vector3f[] { new Vector3f(-148, -275, -215), new Vector3f(-148, -110, -215), new Vector3f(12, -110, -166), new Vector3f(12, -275, -166) }, white2);
-         final Plane small4 = new Plane(new Vector3f[] { new Vector3f(-196, -275, -55), new Vector3f(-196, -110, -55), new Vector3f(-148, -110, -215), new Vector3f(-148, -275, -215) }, white2);
-         final Plane small5 = new Plane(new Vector3f[] { new Vector3f(-32, -275, -8), new Vector3f(-32, -110, -8), new Vector3f(-196, -110, -55), new Vector3f(-196, -275, -55) }, white2);
+         final Plane small1 = new Plane(new Vector3f[] { new Vector3f(-148, -110, -215), new Vector3f(-196, -110, -55), new Vector3f(-32, -110, -8),
+               new Vector3f(12, -110, -166) }, white2);
+         final Plane small2 = new Plane(new Vector3f[] { new Vector3f(12, -275, -166), new Vector3f(12, -110, -166), new Vector3f(-32, -110, -8),
+               new Vector3f(-32, -275, -8) }, white2);
+         final Plane small3 = new Plane(new Vector3f[] { new Vector3f(-148, -275, -215), new Vector3f(-148, -110, -215), new Vector3f(12, -110, -166),
+               new Vector3f(12, -275, -166) }, white2);
+         final Plane small4 = new Plane(new Vector3f[] { new Vector3f(-196, -275, -55), new Vector3f(-196, -110, -55), new Vector3f(-148, -110, -215),
+               new Vector3f(-148, -275, -215) }, white2);
+         final Plane small5 = new Plane(new Vector3f[] { new Vector3f(-32, -275, -8), new Vector3f(-32, -110, -8), new Vector3f(-196, -110, -55),
+               new Vector3f(-196, -275, -55) }, white2);
 
-         final Plane large1 = new Plane(new Vector3f[] { new Vector3f(145, 55, -33), new Vector3f(-13, 55, 16), new Vector3f(36, 55, 176), new Vector3f(194, 55, 126) }, white2);
-         final Plane large2 = new Plane(new Vector3f[] { new Vector3f(145, -275, -33), new Vector3f(145, 55, -33), new Vector3f(194, 55, 126), new Vector3f(194, -275, 126) }, white2);
-         final Plane large3 = new Plane(new Vector3f[] { new Vector3f(194, -275, 126), new Vector3f(194, 55, 126), new Vector3f(36, 55, 176), new Vector3f(36, -275, 176) }, white2);
-         final Plane large4 = new Plane(new Vector3f[] { new Vector3f(36, -275, 176), new Vector3f(36, 55, 176), new Vector3f(-13, 55, 16), new Vector3f(-13, -275, 16) }, white2);
-         final Plane large5 = new Plane(new Vector3f[] { new Vector3f(-13, -275, 16), new Vector3f(-13, 55, 16), new Vector3f(145, 55, -33), new Vector3f(145, -275, -33) }, white2);
+         final Plane large1 = new Plane(new Vector3f[] { new Vector3f(145, 55, -33), new Vector3f(-13, 55, 16), new Vector3f(36, 55, 176),
+               new Vector3f(194, 55, 126) }, white2);
+         final Plane large2 = new Plane(new Vector3f[] { new Vector3f(145, -275, -33), new Vector3f(145, 55, -33), new Vector3f(194, 55, 126),
+               new Vector3f(194, -275, 126) }, white2);
+         final Plane large3 = new Plane(new Vector3f[] { new Vector3f(194, -275, 126), new Vector3f(194, 55, 126), new Vector3f(36, 55, 176),
+               new Vector3f(36, -275, 176) }, white2);
+         final Plane large4 = new Plane(new Vector3f[] { new Vector3f(36, -275, 176), new Vector3f(36, 55, 176), new Vector3f(-13, 55, 16),
+               new Vector3f(-13, -275, 16) }, white2);
+         final Plane large5 = new Plane(new Vector3f[] { new Vector3f(-13, -275, 16), new Vector3f(-13, 55, 16), new Vector3f(145, 55, -33),
+               new Vector3f(145, -275, -33) }, white2);
 
-         return new BoundingVolume[] { floor.getBoundingVolume(), ceiling.getBoundingVolume(), back.getBoundingVolume(), front.getBoundingVolume(), left.getBoundingVolume(),
-               right.getBoundingVolume(), small1.getBoundingVolume(), small2.getBoundingVolume(), small3.getBoundingVolume(), small4.getBoundingVolume(), small5.getBoundingVolume(),
-               large1.getBoundingVolume(), large2.getBoundingVolume(), large3.getBoundingVolume(), large4.getBoundingVolume(), large5.getBoundingVolume() };
+         return new BoundingVolume[] { floor.getBoundingVolume(), ceiling.getBoundingVolume(), back.getBoundingVolume(), front.getBoundingVolume(),
+               left.getBoundingVolume(), right.getBoundingVolume(), small1.getBoundingVolume(), small2.getBoundingVolume(), small3.getBoundingVolume(),
+               small4.getBoundingVolume(), small5.getBoundingVolume(), large1.getBoundingVolume(), large2.getBoundingVolume(), large3.getBoundingVolume(),
+               large4.getBoundingVolume(), large5.getBoundingVolume() };
       }
    }
 }

@@ -48,11 +48,11 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       specular[1] = luminocity[LightAttribution.SPECULAR.cell][1] * color[1];
       specular[2] = luminocity[LightAttribution.SPECULAR.cell][2] * color[2];
 
-      float[] phongColor = new float[] { 0, 0, 0 };
+      final float[] phongColor = new float[] { 0, 0, 0 };
 
-      if (phong != null) {
-         phongColor = phong.getPixelColor(info, depth);
-      }
+      //      if (phong != null) {
+      //         phongColor = phong.getPixelColor(info, depth);
+      //      }
 
       return new float[] { diffuse[0] + specular[0] + phongColor[0], diffuse[1] + specular[1] + phongColor[1], diffuse[2] + specular[2] + phongColor[2] };
    }
@@ -150,7 +150,11 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       int ctr = 0;
 
       final Random random = new Random();
-      final Vector3f lightDir = new Vector3f(0, -1, 0);
+      final Vector3f lightDir = new Vector3f(camera.light.origin);
+      lightDir.scale(-1f);
+      lightDir.normalize();
+
+      System.out.println("light direction: " + lightDir);
       /**
        * Random photons
        */

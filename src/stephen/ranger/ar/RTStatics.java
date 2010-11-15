@@ -26,12 +26,12 @@ public class RTStatics {
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
    // photon mapping settings
-   public static final float COLLECTION_RANGE = 25f;
+   public static final float COLLECTION_RANGE = 5f;
    public static final int NUM_REFLECTIONS = 5;
-   public static final int NUM_PHOTONS = 10000;
+   public static final int NUM_PHOTONS = 25000;
    public static final int COLLECTION_COUNT_THRESHOLD = 25;
    public static final float STARTING_INTENSITY = 100f;
-   public static final int PHOTON_COLLECTION_GRID_SIZE = 8;
+   public static final int PHOTON_COLLECTION_GRID_SIZE = 25;
 
    private static JProgressBar PROGRESS_BAR;
 
