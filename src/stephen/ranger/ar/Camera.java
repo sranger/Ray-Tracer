@@ -6,9 +6,9 @@ import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -123,29 +123,45 @@ public class Camera {
             final float xStart = -(viewportWidth / 2.0f);
             final float yStart = viewportHeight / 2.0f;
             final float xInc = viewportWidth / screenWidth;
-            final float yInc = viewportHeight / screenHeight;
+            final float yInc = -viewportHeight / screenHeight;
             final long startTime = System.nanoTime();
-
-            final List<int[]> nodes = new ArrayList<int[]>();
-
-            for (int x = 0; x < image.getWidth(); x = x + nodeSize) {
-               for (int y = 0; y < image.getHeight(); y = y + nodeSize) {
-                  nodes.add(new int[] { x, y, x + nodeSize > image.getWidth() ? image.getWidth() - x : nodeSize, y + nodeSize > image.getHeight() ? image.getHeight() - y : nodeSize });
-               }
-            }
 
             int temp = Runtime.getRuntime().availableProcessors();
             temp = Math.max(1, temp - 1);
-            temp = Math.min(nodes.size(), temp);
             final int cpus = temp;
+            final List<RenderThread> threads = new ArrayList<RenderThread>();
+            final Random random = new Random();
+
+            final List<List<int[]>> pixels = new ArrayList<List<int[]>>();
+            final List<int[]> allPixels = new ArrayList<int[]>();
+            for (int i = 0; i < cpus; i++) {
+               pixels.add(new ArrayList<int[]>());
+            }
+
+            for (int x = 0; x < image.getWidth(); x++) {
+               for (int y = 0; y < image.getHeight(); y++) {
+                  allPixels.add(new int[] { x, y });
+               }
+            }
+
+            final int totalPixelCount = allPixels.size();
+
+            for (int i = 0; i < totalPixelCount; i++) {
+               final int randomPosition = random.nextInt(totalPixelCount);
+               final int[] tempPixel = allPixels.get(i);
+               allPixels.set(i, allPixels.get(randomPosition));
+               allPixels.set(randomPosition, tempPixel);
+            }
+
+            for (int i = 0; i < totalPixelCount; i++) {
+               pixels.get(random.nextInt(3)).add(allPixels.get(i));
+            }
 
             RTStatics.setProgressBarMinMax(0, image.getWidth() * image.getHeight());
             RTStatics.setProgressBarValue(0);
             RTStatics.setProgressBarString("Rendering image...");
 
-            final Set<RenderThread> threads = new HashSet<RenderThread>();
             final ActionListener threadListener = new ActionListener() {
-               int nodePosition = cpus;
                double totalTime = 0;
 
                @Override
@@ -155,18 +171,9 @@ public class Camera {
                   totalTime += seconds;
                   System.out.println("node #" + event.getID() + ": " + seconds + " seconds,  threads running: " + threads.size());
 
-                  for (final ActionListener listener : listeners) {
-                     listener.actionPerformed(new ActionEvent(this, 2, "update"));
-                  }
+                  sendUpdate();
 
-                  if (nodePosition < nodes.size()) {
-                     final int[] node = nodes.get(nodePosition);
-                     System.out.println("creating node for: " + Arrays.toString(node));
-                     nodePosition++;
-                     final RenderThread thread = new RenderThread(Camera.this, this, nodePosition, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
-                     threads.add(thread);
-                     thread.start();
-                  } else if (nodePosition == nodes.size() && threads.size() == 0) {
+                  if (threads.size() == 0) {
                      final long endTime = System.nanoTime();
 
                      System.out.println("total elapsed time: " + (endTime - startTime) / 1000000000. + " seconds");
@@ -184,14 +191,18 @@ public class Camera {
             };
 
             for (int i = 0; i < cpus; i++) {
-               final int[] node = nodes.get(i);
-               System.out.println("creating node for: " + Arrays.toString(node));
-               final RenderThread thread = new RenderThread(Camera.this, threadListener, i, node[0], node[1], node[2], node[3], xStart, yStart, xInc, yInc);
-               threads.add(thread);
-               thread.start();
+               System.out.println("creating thread #" + i + " with " + pixels.get(i).size() + " pixels");
+               threads.add(new RenderThread(Camera.this, pixels.get(i), xStart, yStart, xInc, yInc, threadListener, i));
+               threads.get(i).start();
             }
          }
       }.start();
+   }
+
+   public void sendUpdate() {
+      for (final ActionListener listener : listeners) {
+         listener.actionPerformed(new ActionEvent(this, 2, "update"));
+      }
    }
 
    public IntersectionInformation getClosestIntersection(final BoundingVolume mirrorObject, final Vector3f origin, final Vector3f direction, final int depth) {
@@ -247,7 +258,8 @@ public class Camera {
 
                      // System.err.println("(" + oldV + " - " + min + ") / " + "(" + max + " - " + min + ") == " + hsv[2]);
 
-                     normalizedImage.setRGB(x, y, new Color(RTStatics.bound(0, 1, rgb[0]), RTStatics.bound(0, 1, rgb[1]), RTStatics.bound(0, 1, rgb[2])).getRGB());
+                     normalizedImage.setRGB(x, y, new Color(RTStatics.bound(0, 1, rgb[0]), RTStatics.bound(0, 1, rgb[1]), RTStatics.bound(0, 1, rgb[2]))
+                           .getRGB());
                   }
                }
             }
