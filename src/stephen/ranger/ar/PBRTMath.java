@@ -112,13 +112,10 @@ public class PBRTMath {
    }
 
    /**
-    * http://mathworld.wolfram.com/Plane.html
-    * 
     * @param normal
-    * @param intersection
     * @return
     */
-   public static Vector3f getNormalTangent(final Vector3f normal, final Vector3f intersection) {
+   public static Vector3f getNormalTangent(final Vector3f normal) {
       final Vector3f randomVector = new Vector3f(0, 1, 0);
       final float dot = Math.abs(normal.dot(randomVector));
 

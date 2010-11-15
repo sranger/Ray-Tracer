@@ -61,7 +61,7 @@ public class BRDFMaterial extends ColorInformation {
       final Vector3f tempDir = new Vector3f();
       tempDir.sub(camera.light.origin, info.intersection);
       tempDir.normalize();
-      final Vector3f tangent = PBRTMath.getNormalTangent(info.normal, info.intersection);
+      final Vector3f tangent = PBRTMath.getNormalTangent(info.normal);
 
       for (int i = 0; i < camera.brdfSamples; i++) {
          final float[] remapped = PBRTMath.getRemappedDirection(info.normal, tangent, negRay, RTStatics.getReflectionDirection(info.normal, tempDir));
