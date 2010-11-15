@@ -135,7 +135,7 @@ public class Camera {
             }
 
             int temp = Runtime.getRuntime().availableProcessors();
-            temp = Math.max(1, temp);
+            temp = Math.max(1, temp - 1);
             temp = Math.min(nodes.size(), temp);
             final int cpus = temp;
 
@@ -265,8 +265,11 @@ public class Camera {
 
          if (output.createNewFile() || output.canWrite()) {
             final String[] split = outputFile.split("\\.");
-            ImageIO.write(normalized ? normalizedImage : image, split[split.length - 1], output);
-            System.out.println("Image saved to " + outputFile + " successfully");
+            if (ImageIO.write(normalized ? normalizedImage : image, split[split.length - 1], output)) {
+               System.out.println("Image saved to " + outputFile + " successfully");
+            } else {
+               System.err.println("Error writing image to " + outputFile);
+            }
          }
       } catch (final Exception e) {
          e.printStackTrace();

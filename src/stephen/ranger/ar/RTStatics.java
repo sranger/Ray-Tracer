@@ -27,12 +27,11 @@ public class RTStatics {
 
    // photon mapping settings
    public static final float COLLECTION_RANGE = 25f;
-   public static final int NUM_REFLECTIONS = 2;
-   public static final int NUM_PHOTONS = 50000;
-   public static final int COLLECTION_COUNT_THRESHOLD = 5;
+   public static final int NUM_REFLECTIONS = 5;
+   public static final int NUM_PHOTONS = 10000;
+   public static final int COLLECTION_COUNT_THRESHOLD = 25;
    public static final float STARTING_INTENSITY = 100f;
-   // public static final float PHOTON_FALLOFF = 0.9f;
-   public static final int PHOTON_COLLECTION_GRID_SIZE = 5;
+   public static final int PHOTON_COLLECTION_GRID_SIZE = 8;
 
    private static JProgressBar PROGRESS_BAR;
 
@@ -206,6 +205,30 @@ public class RTStatics {
    }
 
    /**
+    * Returns the distance between the two given vertices.
+    * 
+    * @param p1   Vertex 1
+    * @param p2   Vertex 2
+    * @return     The distance between p1 and p2
+    */
+   public static float getDistance(final Vector3f p1, final float[] p2) {
+      return (float) Math.sqrt(RTStatics.getDistanceSquared(p1, p2));
+   }
+
+   /**
+    * Returns the squared distance between the two given vertices.
+    * 
+    * @param p1
+    *           Vertex 1
+    * @param p2
+    *           Vertex 2
+    * @return The distance between p1 and p2
+    */
+   public static float getDistanceSquared(final Vector3f p1, final float[] p2) {
+      return (p1.x - p2[0]) * (p1.x - p2[0]) + (p1.y - p2[1]) * (p1.y - p2[1]) + (p1.z - p2[2]) * (p1.z - p2[2]);
+   }
+
+   /**
     * Returns the min/max values of the vertices denoted by the given indices.
     * 
     * @param vertices
@@ -295,8 +318,10 @@ public class RTStatics {
     * @return The normal of the given triangle
     */
    public static float[] computeNormal(final float[][] vertices, final int[] indices) {
-      final Vector3f e1 = new Vector3f(vertices[indices[1]][0] - vertices[indices[0]][0], vertices[indices[1]][1] - vertices[indices[0]][1], vertices[indices[1]][2] - vertices[indices[0]][2]);
-      final Vector3f e2 = new Vector3f(vertices[indices[2]][0] - vertices[indices[0]][0], vertices[indices[2]][1] - vertices[indices[0]][1], vertices[indices[2]][2] - vertices[indices[0]][2]);
+      final Vector3f e1 = new Vector3f(vertices[indices[1]][0] - vertices[indices[0]][0], vertices[indices[1]][1] - vertices[indices[0]][1],
+            vertices[indices[1]][2] - vertices[indices[0]][2]);
+      final Vector3f e2 = new Vector3f(vertices[indices[2]][0] - vertices[indices[0]][0], vertices[indices[2]][1] - vertices[indices[0]][1],
+            vertices[indices[2]][2] - vertices[indices[0]][2]);
       final Vector3f normal = new Vector3f();
       normal.cross(e1, e2);
       normal.normalize();
@@ -482,8 +507,8 @@ public class RTStatics {
     * @return
     */
    public static boolean aabbIntersection(final float[][] minMax, final float[][] minMax2) {
-      if (minMax[0][0] >= minMax2[0][0] && minMax[1][0] <= minMax2[1][0] && minMax[0][1] >= minMax2[0][1] && minMax[1][1] <= minMax2[1][1] && minMax[0][2] >= minMax2[0][2]
-            && minMax[1][2] <= minMax2[1][2]) {
+      if (minMax[0][0] >= minMax2[0][0] && minMax[1][0] <= minMax2[1][0] && minMax[0][1] >= minMax2[0][1] && minMax[1][1] <= minMax2[1][1]
+            && minMax[0][2] >= minMax2[0][2] && minMax[1][2] <= minMax2[1][2]) {
          return true;
       }
 
@@ -566,5 +591,52 @@ public class RTStatics {
 
    public static int compare(final Photon o1, final Photon o2, final SeparationAxis axis) {
       return o1.location[axis.pos] < o2.location[axis.pos] ? -1 : o2.location[axis.pos] < o1.location[axis.pos] ? 1 : 0;
+   }
+
+   /**
+    * Returns the acute angle between the two given vectors. The two vectors will be
+    * normalized before computation but copies will be made so the originals are not modified.
+    * 
+    * cos^-1(a.b/|a||b|)
+    * 
+    * @param vector1   Vector 1
+    * @param vector2   Vector 2
+    * @return          The angle in radians between vector1 and vector2
+    */
+   public static float getAngle(final Vector3f vector1, final Vector3f vector2) {
+      final Vector3f v1 = new Vector3f(vector1);
+      final Vector3f v2 = new Vector3f(vector2);
+
+      v1.normalize();
+      v2.normalize();
+
+      final float angle = (float) Math.acos(v1.dot(v2));
+
+      return angle > 180f ? angle - 180f : angle;
+   }
+
+   /**
+    * Returns a random vector within the hemisphere with the given normal as elevation = 90 degrees
+    * 
+    * http://www.gamedev.net/community/forums/viewreply.asp?ID=2823295
+    * 
+    * @param normal  The center of the hemisphere
+    * @return        A random vector in the normal's hemisphere
+    */
+   public static Vector3f getVectorMarsagliaHemisphere(final Vector3f normal) {
+      float a, b, l;
+
+      do {
+         a = 1.0f - 2.0f * (float) Math.random();
+         b = 1.0f - 2.0f * (float) Math.random();
+         l = a * a + b * b;
+      } while (1 < l);
+
+      final float s = (float) Math.sqrt(1.0f - l);
+
+      final Vector3f random = new Vector3f(2.0f * a * s + normal.x, 2.0f * b * s + normal.y, 1.0f - 2.0f * l + normal.z);
+      random.normalize();
+
+      return random;
    }
 }

@@ -61,17 +61,30 @@ public class RayTracer {
 
    public Camera camera = null;
 
-   public RayTracer(final String baseDir) {
+   public RayTracer(final String baseDir, final int width, final int height, final int x, final int y) {
       RayTracer.baseDir = baseDir;
-      new RayTracerInterface(this);
+      new RayTracerInterface(this, width, height, x, y);
    }
 
    public static void main(final String[] args) {
-      if (!args[0].equals("")) {
+      if (args != null && args.length > 0 && !args[0].equals("")) {
          final File baseDir = new File(args[0]);
+         int width = 1500;
+         int height = 1000;
+         int x = 100;
+         int y = 100;
 
          if (baseDir.exists() && baseDir.isDirectory()) {
-            new RayTracer(args[0]);
+            if (args.length >= 3) {
+               width = Integer.parseInt(args[1]);
+               height = Integer.parseInt(args[2]);
+
+               if (args.length >= 5) {
+                  x = Integer.parseInt(args[3]);
+                  y = Integer.parseInt(args[4]);
+               }
+            }
+            new RayTracer(args[0], width, height, x, y);
          } else {
             System.err.println(baseDir.getAbsolutePath() + " must be a directory.");
          }

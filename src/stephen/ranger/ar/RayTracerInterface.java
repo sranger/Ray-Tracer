@@ -34,8 +34,9 @@ import javax.swing.event.ListSelectionListener;
 import stephen.ranger.ar.RayTracer.Scenes;
 
 public class RayTracerInterface extends JFrame {
-   public RayTracerInterface(final RayTracer rayTracer) {
+   public RayTracerInterface(final RayTracer rayTracer, final int width, final int height, final int x, final int y) {
       setTitle("Ray-Tracer");
+      this.setLocation(x, y);
 
       final JPanel sidePanel = new JPanel();
       sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.PAGE_AXIS));
@@ -99,7 +100,7 @@ public class RayTracerInterface extends JFrame {
       final JScrollPane imagePane = new JScrollPane(iconLabel);
       imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
       imagePane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-      imagePane.setPreferredSize(new Dimension(1050, 540));
+      imagePane.setPreferredSize(new Dimension(1050, 1050));
 
       final JButton renderButton = new JButton("Render Scene");
       final JButton closeButton = new JButton("Close");
@@ -263,6 +264,7 @@ public class RayTracerInterface extends JFrame {
 
       setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
       pack();
+      this.setSize(width, height);
       setVisible(true);
    }
 }

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import javax.vecmath.Matrix4f;
 import javax.vecmath.Vector3f;
 
 import stephen.ranger.ar.Camera;
@@ -17,14 +16,16 @@ import stephen.ranger.ar.photons.Photon.LightAttribution;
 public class GlobalIlluminationLightingModel extends LightingModel {
 
    public PhotonTree photons = null;
+   private PhongLightingModel phong = null;
 
    public GlobalIlluminationLightingModel() {
-
    }
 
    @Override
    public void setCamera(final Camera camera) {
       this.camera = camera;
+      System.out.println("camera set: " + camera);
+      phong = new PhongLightingModel(camera.light, camera.objects);
 
       final long startTimePhotonMap = System.nanoTime();
       photons = computePhotonMap();
@@ -34,7 +35,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
    @Override
    public float[] getPixelColor(final IntersectionInformation info, final int depth) {
-      final float[][] luminocity = getPhotonMapLuminocity(info);
+      final float[][] luminocity = collectPhotons(info);
       final float[] color = info.intersectionObject.getColor(info, camera, depth);
 
       final float[] diffuse = new float[3];
@@ -47,35 +48,91 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       specular[1] = luminocity[LightAttribution.SPECULAR.cell][1] * color[1];
       specular[2] = luminocity[LightAttribution.SPECULAR.cell][2] * color[2];
 
-      return new float[] { diffuse[0] + specular[0], diffuse[1] + specular[1], diffuse[2] + specular[2] };
+      float[] phongColor = new float[] { 0, 0, 0 };
+
+      if (phong != null) {
+         phongColor = phong.getPixelColor(info, depth);
+      }
+
+      return new float[] { diffuse[0] + specular[0] + phongColor[0], diffuse[1] + specular[1] + phongColor[1], diffuse[2] + specular[2] + phongColor[2] };
+   }
+
+   private float[][] collectPhotons(final IntersectionInformation info) {
+      final float[][] values = new float[][] { { 0, 0, 0 }, { 0, 0, 0 } };
+      float[][] temp;
+
+      for (int x = 0; x < RTStatics.PHOTON_COLLECTION_GRID_SIZE; x++) {
+         for (int y = 0; y < RTStatics.PHOTON_COLLECTION_GRID_SIZE; y++) {
+            final Vector3f dir = RTStatics.getVectorMarsagliaHemisphere(info.normal);
+
+            final IntersectionInformation collectionInfo = camera.getClosestIntersection(null, info.intersection, dir, 0);
+
+            if (collectionInfo != null) {
+               temp = getPhotonMapLuminocity(collectionInfo);
+               final float falloff = (float) Math.toDegrees(Math.cos(RTStatics.getAngle(collectionInfo.ray.direction, info.normal)))
+                     / RTStatics.getDistance(info.intersection, collectionInfo.intersection);
+               //               final float falloff = 1f;
+
+               values[0][0] += temp[0][0] * falloff;
+               values[0][1] += temp[0][1] * falloff;
+               values[0][2] += temp[0][2] * falloff;
+
+               values[1][0] += temp[1][0] * falloff;
+               values[1][1] += temp[1][1] * falloff;
+               values[1][2] += temp[1][2] * falloff;
+            }
+         }
+      }
+
+      final int rayCount = RTStatics.PHOTON_COLLECTION_GRID_SIZE * RTStatics.PHOTON_COLLECTION_GRID_SIZE;
+
+      values[0][0] /= rayCount;
+      values[0][1] /= rayCount;
+      values[0][2] /= rayCount;
+
+      values[1][0] /= rayCount;
+      values[1][1] /= rayCount;
+      values[1][2] /= rayCount;
+
+      return values;
    }
 
    private float[][] getPhotonMapLuminocity(final IntersectionInformation info) {
-      final int[] indices = photons.rangeSearch(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_RANGE);
-      //      final int[] indices = photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_COUNT_THRESHOLD);
-      final float[][] total = new float[3][3];
-      final int[] counts = new int[3];
+      final float[][] total = new float[][] { { 0, 0, 0 }, { 0, 0, 0 } };
 
-      if (indices.length > 0) {
-         for (final int indice : indices) {
-            // take into consideration falloff from intersection to photon location
-            final float invDistance = 1f;// / RTStatics.getDistance(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, photons[i].location);
-            final Photon photon = photons.get(indice);
+      if (info != null) {
+         final int[] indices = photons.rangeSearch(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_RANGE);
+         // final int[] indices = this.photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_COUNT_THRESHOLD);
+         final int[] counts = new int[3];
+         Photon photon;
 
-            total[photon.value.cell][0] += photon.intensity * invDistance * photon.color[0];
-            total[photon.value.cell][1] += photon.intensity * invDistance * photon.color[1];
-            total[photon.value.cell][2] += photon.intensity * invDistance * photon.color[2];
+         if (indices.length > 0) {
+            for (final int index : indices) {
+               photon = photons.get(index);
+               // take into consideration falloff from intersection to photon location
+               //               final float invDistance = (float) Math.toDegrees(Math.cos(RTStatics.getAngle(info.normal, new Vector3f(photon.incomingDir))))
+               //                     / RTStatics.getDistance(info.intersection, photons.get(index).location);
+               final float invDistance = 1f;
 
-            counts[photon.value.cell]++;
+               total[photon.value.cell][0] += photon.intensity * invDistance * photon.color[0];
+               total[photon.value.cell][1] += photon.intensity * invDistance * photon.color[1];
+               total[photon.value.cell][2] += photon.intensity * invDistance * photon.color[2];
+
+               counts[photon.value.cell]++;
+            }
+
+            //            if (counts[LightAttribution.DIFFUSE.cell] > 0) {
+            //               total[LightAttribution.DIFFUSE.cell][0] /= counts[LightAttribution.DIFFUSE.cell];
+            //               total[LightAttribution.DIFFUSE.cell][1] /= counts[LightAttribution.DIFFUSE.cell];
+            //               total[LightAttribution.DIFFUSE.cell][2] /= counts[LightAttribution.DIFFUSE.cell];
+            //            }
+            //
+            //            if (counts[LightAttribution.SPECULAR.cell] > 0) {
+            //               total[LightAttribution.SPECULAR.cell][0] /= counts[LightAttribution.SPECULAR.cell];
+            //               total[LightAttribution.SPECULAR.cell][1] /= counts[LightAttribution.SPECULAR.cell];
+            //               total[LightAttribution.SPECULAR.cell][2] /= counts[LightAttribution.SPECULAR.cell];
+            //            }
          }
-
-         total[LightAttribution.DIFFUSE.cell][0] /= counts[LightAttribution.DIFFUSE.cell];
-         total[LightAttribution.DIFFUSE.cell][1] /= counts[LightAttribution.DIFFUSE.cell];
-         total[LightAttribution.DIFFUSE.cell][2] /= counts[LightAttribution.DIFFUSE.cell];
-
-         total[LightAttribution.SPECULAR.cell][0] /= counts[LightAttribution.SPECULAR.cell];
-         total[LightAttribution.SPECULAR.cell][1] /= counts[LightAttribution.SPECULAR.cell];
-         total[LightAttribution.SPECULAR.cell][2] /= counts[LightAttribution.SPECULAR.cell];
       }
 
       return total;
@@ -92,17 +149,13 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
       int ctr = 0;
 
-      final Matrix4f rotation = new Matrix4f();
       final Random random = new Random();
-
+      final Vector3f lightDir = new Vector3f(0, -1, 0);
       /**
        * Random photons
        */
       for (int i = 0; i < RTStatics.NUM_PHOTONS; i++) {
-         rotation.set(RTStatics.initializeQuat4f(new float[] { random.nextFloat() * 360f, random.nextFloat() * 360f, random.nextFloat() * 360f }));
-         Vector3f dir = new Vector3f(0, 0, 1);
-         rotation.transform(dir);
-         dir.normalize();
+         Vector3f dir = RTStatics.getVectorMarsagliaHemisphere(lightDir);
          Vector3f origin = new Vector3f(camera.light.origin);
          float intensity = RTStatics.STARTING_INTENSITY;
          final float[] emissionColor = camera.light.emission.getColorComponents(new float[3]);
@@ -114,13 +167,14 @@ public class GlobalIlluminationLightingModel extends LightingModel {
             if (value != null) {
                final IntersectionInformation info = camera.getClosestIntersection(null, origin, dir, 0);
                if (info != null) {
-                  // final float[] color = info.intersectionObject.getColor(info).getColorComponents(new float[3]);
-                  // emissionColor[0] *= color[0];
-                  // emissionColor[1] *= color[1];
-                  // emissionColor[2] *= color[2];
+                  final float[] color = info.intersectionObject.getColor(info, camera, 0);
+                  emissionColor[0] *= color[0];
+                  emissionColor[1] *= color[1];
+                  emissionColor[2] *= color[2];
 
-                  intensity *= Math.toDegrees(info.normal.dot(dir)) / RTStatics.getDistance(info.intersection, origin);
-                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x, dir.y, dir.z }, intensity, value));
+                  intensity *= 0.4f;//(float) Math.toDegrees(Math.cos(RTStatics.getAngle(info.normal, dir))) / RTStatics.getDistanceSquared(info.intersection, origin);
+                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x,
+                        dir.y, dir.z }, intensity, value));
 
                   origin = info.intersection;
                   dir = RTStatics.getReflectionDirection(info.normal, dir);
