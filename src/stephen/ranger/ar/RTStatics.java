@@ -1,6 +1,7 @@
 package stephen.ranger.ar;
 
 import java.text.DecimalFormat;
+import java.util.Random;
 
 import javax.swing.JProgressBar;
 import javax.vecmath.AxisAngle4f;
@@ -28,12 +29,12 @@ public class RTStatics {
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
    // photon mapping settings
-   public static final float COLLECTION_RANGE = 5f;
-   public static final int NUM_REFLECTIONS = 10;
-   public static final int NUM_PHOTONS = 2000;
-   public static final int COLLECTION_COUNT_THRESHOLD = 50;
-   public static final float STARTING_INTENSITY = 10000000f;
-   public static final int PHOTON_COLLECTION_RAY_COUNT = 25;
+   public static final float COLLECTION_RANGE = 100f;//Float.MAX_VALUE;
+   public static final int NUM_REFLECTIONS = 5;
+   public static final int NUM_PHOTONS = 200000;
+   public static final int COLLECTION_COUNT_THRESHOLD = 100;
+   public static final float STARTING_INTENSITY = 10000f;
+   public static final int PHOTON_COLLECTION_RAY_COUNT = 4;
 
    private static JProgressBar PROGRESS_BAR;
 
@@ -595,47 +596,6 @@ public class RTStatics {
       return o1.location[axis.pos] < o2.location[axis.pos] ? -1 : o2.location[axis.pos] < o1.location[axis.pos] ? 1 : 0;
    }
 
-   /**
-    * Returns a random vector within the hemisphere with the given normal as elevation = 90 degrees
-    * 
-    * http://www.gamedev.net/community/forums/viewreply.asp?ID=2823295
-    * 
-    * @param normal  The center of the hemisphere
-    * @return        A random vector in the normal's hemisphere
-    */
-   public static Vector3f getVectorMarsagliaHemisphere(final Vector3f normal) {
-      float a, b, l;
-
-      do {
-         a = 1.0f - 2.0f * (float) Math.random();
-         b = 1.0f - 2.0f * (float) Math.random();
-         l = a * a + b * b;
-      } while (1 < l);
-
-      final float s = (float) Math.sqrt(1.0f - l);
-
-      final Vector3f random = new Vector3f(2.0f * a * s, 2.0f * b * s, 1.0f - 2.0f * l);
-      random.normalize();
-
-      final Vector3f tangent = PBRTMath.getNormalTangent(normal);
-      tangent.normalize();
-
-      return RTStatics.shadingCoordsToWorld(random, normal, tangent);
-   }
-
-   public static final Vector3f shadingCoordsToWorld(final Vector3f vec, final Vector3f shadingNormal, final Vector3f shadingX) {
-      final Vector3f newVec = new Vector3f();
-      final float yAxisX = shadingNormal.y * shadingX.z - shadingNormal.z * shadingX.y;
-      final float yAxisY = shadingNormal.z * shadingX.x - shadingNormal.x * shadingX.z;
-      final float yAxisZ = shadingNormal.x * shadingX.y - shadingNormal.y * shadingX.x;
-
-      newVec.set(vec.x * shadingX.x + vec.y * yAxisX + vec.z * shadingNormal.x, vec.x * shadingX.y + vec.y * yAxisY + vec.z * shadingNormal.y, vec.x
-            * shadingX.z + vec.y * yAxisZ + vec.z * shadingNormal.z);
-      newVec.normalize();
-
-      return newVec;
-   }
-
    public static Vector3f offsetPosition(final Vector3f p, final Vector3f n) {
       final Vector3f smallNormal = new Vector3f(n);
       smallNormal.scale(RTStatics.EPSILON);
@@ -667,5 +627,94 @@ public class RTStatics {
       }
 
       return false;
+   }
+
+   /**
+    * Returns a random vector within the hemisphere with the given normal as elevation = 90 degrees
+    * 
+    * http://www.gamedev.net/community/forums/viewreply.asp?ID=2823295
+    * 
+    * @param normal  The center of the hemisphere
+    * @return        A random vector in the normal's hemisphere
+    */
+   public static Vector3f getVectorMarsagliaHemisphere(final Vector3f normal) {
+      float a, b, l;
+
+      do {
+         a = 1.0f - 2.0f * (float) Math.random();
+         b = 1.0f - 2.0f * (float) Math.random();
+         l = a * a + b * b;
+      } while (1 < l);
+
+      final float s = (float) Math.sqrt(1.0f - l);
+
+      final Vector3f random = new Vector3f(2.0f * a * s, 2.0f * b * s, 1.0f - 2.0f * l);
+      random.normalize();
+
+      final Vector3f tangent = PBRTMath.getNormalTangent(normal);
+      tangent.normalize();
+
+      return random;
+   }
+
+   public static final Vector3f shadingCoordsToWorld(final Vector3f vec, final Vector3f shadingNormal, final Vector3f shadingX) {
+      final Vector3f newVec = new Vector3f();
+      final float yAxisX = shadingNormal.y * shadingX.z - shadingNormal.z * shadingX.y;
+      final float yAxisY = shadingNormal.z * shadingX.x - shadingNormal.x * shadingX.z;
+      final float yAxisZ = shadingNormal.x * shadingX.y - shadingNormal.y * shadingX.x;
+
+      final float x = vec.x * shadingX.x + vec.y * yAxisX + vec.z * shadingNormal.x;
+      final float y = vec.x * shadingX.y + vec.y * yAxisY + vec.z * shadingNormal.y;
+      final float z = vec.x * shadingX.z + vec.y * yAxisZ + vec.z * shadingNormal.z;
+
+      newVec.set(x, y, z);
+      newVec.normalize();
+
+      return newVec;
+   }
+
+   /**
+    * Generates a vector randomly sampled from the hemisphere surrounding the z axis with a cosine probability
+    * distribution.
+    *
+    * @param result
+    * The resulting random sample.
+    * @param rng
+    * A random number generator.
+    * @return the probability of the generated ray occuring of all possible directions around the hemisphere.
+    * @see PBRT implementation.
+    */
+   public static final float cosSampleHemisphere(final Vector3f result, final Vector3f normal, final Random rng) {
+      /*
+       * Cosine-weighted sampling about the surface normal:
+       *
+       * Probability of direction Wo = 1/pi * cos(theta) where theta is the angle between the surface normal and Ko.
+       *
+       * The polar angle about the normal is chosen from a uniform distribution 0..2pi
+       */
+      final float cosTheta = (float) Math.sqrt(1.0 - rng.nextDouble());
+      final float sinTheta = (float) Math.sqrt(1.0 - cosTheta * cosTheta);
+      final float phi = (float) (2.0 * Math.PI * rng.nextDouble());
+      final float xb = (float) (sinTheta * Math.cos(phi));
+      final float yb = (float) (sinTheta * Math.sin(phi));
+
+      result.set(xb, yb, cosTheta);
+
+      return (float) (cosTheta / Math.PI);
+   }
+
+   public static void main(final String[] args) {
+      final Vector3f result = new Vector3f(1, 0, 0);
+      final Vector3f normal = new Vector3f(0, 1, 0);
+      final Vector3f tangent = PBRTMath.getNormalTangent(normal);
+      final Vector3f bitangent = new Vector3f();
+      bitangent.cross(normal, tangent);
+      final Random random = new Random();
+      final double weight = RTStatics.cosSampleHemisphere(result, normal, random);
+
+      //      final Matrix3f m = new Matrix3f(tangent.x, tangent.y, tangent.z, bitangent.x, bitangent.y, bitangent.z, normal.x, normal.y, normal.z);
+      //      m.transform(result);
+
+      System.out.println(result + ": " + weight);
    }
 }

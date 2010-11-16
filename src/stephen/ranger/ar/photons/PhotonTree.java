@@ -195,10 +195,14 @@ public class PhotonTree {
     * @return           The k nearest neighbors to the given location
     */
    private void kNearest(final SortedMap<Integer, Float> heap, final float[] location, final int k) {
+      final float m2 = RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE;
+
       // if the current node is not a leaf node, search its children
       if (splitAxis != null) {
          // get the distance from the search location to this nodes' median value
          final float distanceToMedian = location[splitAxis.pos] - medianValue;
+         final float d2 = distanceToMedian * distanceToMedian;
+         final float last2 = heap.size() > 0 ? heap.get(heap.lastKey()) : m2;
 
          // if either left or right are not null, do search (should always be true if this is not a leaf node)
          if (left != null || right != null) {
@@ -210,7 +214,7 @@ public class PhotonTree {
                   left.kNearest(heap, location, k);
                }
                // right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
-               if (right != null && (heap.size() < k || distanceToMedian * distanceToMedian < heap.get(heap.lastKey()))) {
+               if (right != null && (heap.size() < k || d2 < last2) && Math.abs(distanceToMedian) <= m2) {
                   right.kNearest(heap, location, k);
                }
             } else {
@@ -219,7 +223,7 @@ public class PhotonTree {
                   right.kNearest(heap, location, k);
                }
                // if right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
-               if (left != null && (heap.size() < k || distanceToMedian * distanceToMedian < heap.get(heap.lastKey()))) {
+               if (left != null && (heap.size() < k || d2 < last2) && Math.abs(distanceToMedian) <= m2) {
                   left.kNearest(heap, location, k);
                }
             }
@@ -231,7 +235,7 @@ public class PhotonTree {
          float distanceSquared, x, y, z;
          float[] tempPos;
          int heapSize = heap.size();
-         float currentMax = heapSize == 0 ? Float.MAX_VALUE : heap.get(heap.lastKey());
+         float currentMax = heapSize == 0 ? RTStatics.COLLECTION_RANGE : heap.get(heap.lastKey());
 
          // iterate over all the children indices
          for (final int index : indices) {
@@ -244,13 +248,13 @@ public class PhotonTree {
             distanceSquared = x * x + y * y + z * z;
 
             // if the heap isn't full, insert the current point
-            if (heapSize < k) {
+            if (heapSize < k && distanceSquared <= m2) {
                heap.put(index, distanceSquared);
                heapSize++;
             }
             // else if the distance to the current point is less than the furthest point in the heap,
             // remove the furthest point and insert the current point
-            else if (distanceSquared < currentMax) {
+            else if (distanceSquared < currentMax && distanceSquared <= m2) {
                heap.remove(heap.lastKey());
                heap.put(index, distanceSquared);
                currentMax = heap.get(heap.lastKey());
