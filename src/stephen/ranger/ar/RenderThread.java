@@ -46,7 +46,7 @@ public class RenderThread extends Thread {
             camera.rotation.transform(viewportDirection);
             viewportDirection.normalize();
 
-            closest = camera.getClosestIntersection(null, camera.origin, viewportDirection, 0);
+            closest = camera.getClosestIntersection(null, camera.origin, viewportDirection, null, 0);
 
             if (closest != null) {
                colors[j] = camera.lightingModel.getPixelColor(closest, 0);

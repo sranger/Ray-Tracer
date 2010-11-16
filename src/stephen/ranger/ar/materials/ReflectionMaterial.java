@@ -13,7 +13,8 @@ public class ReflectionMaterial extends ColorInformation {
 
    @Override
    public float[] getMaterialColor(final Camera camera, final IntersectionInformation info, final int depth) {
-      final IntersectionInformation mirrorInfo = camera.getClosestIntersection(info.intersectionObject, info.intersection, RTStatics.getReflectionDirection(info), depth + 1);
+      final IntersectionInformation mirrorInfo = camera.getClosestIntersection(info.intersectionObject, info.intersection, RTStatics
+            .getReflectionDirection(info), info.normal, depth + 1);
 
       if (mirrorInfo == null) {
          return camera.light.ambient.getColorComponents(new float[3]);

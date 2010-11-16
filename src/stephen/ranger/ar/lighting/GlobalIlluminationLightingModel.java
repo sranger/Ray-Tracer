@@ -11,13 +11,12 @@ import stephen.ranger.ar.IntersectionInformation;
 import stephen.ranger.ar.PBRTMath;
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.photons.Photon;
-import stephen.ranger.ar.photons.Photon.LightAttribution;
 import stephen.ranger.ar.photons.PhotonTree;
+import stephen.ranger.ar.photons.Photon.LightAttribution;
 
 public class GlobalIlluminationLightingModel extends LightingModel {
 
    public PhotonTree photons = null;
-   private PhongLightingModel phong = null;
 
    public GlobalIlluminationLightingModel() {
    }
@@ -25,36 +24,32 @@ public class GlobalIlluminationLightingModel extends LightingModel {
    @Override
    public void setCamera(final Camera camera) {
       this.camera = camera;
-      System.out.println("camera set: " + camera);
-      this.phong = new PhongLightingModel(camera.light, camera.objects);
 
       final long startTimePhotonMap = System.nanoTime();
-      this.photons = this.computePhotonMap();
+      photons = computePhotonMap();
       final long endTimePhotonMap = System.nanoTime();
       System.out.println("Created Photon Map in " + (endTimePhotonMap - startTimePhotonMap) / 1000000000. + " seconds");
    }
 
    @Override
    public float[] getPixelColor(final IntersectionInformation info, final int depth) {
-      final float[] irradiance = this.collectPhotons(info);
-      final float[] color = info.intersectionObject.getColor(info, this.camera, depth);
+      final float[] irradiance = collectPhotons(info);
+      //      final float[] irradiance = getPhotonMapLuminocity(info);
 
-      final float[] diffuse = new float[3];
-      diffuse[0] = irradiance[LightAttribution.DIFFUSE.cell] * color[0];
-      diffuse[1] = irradiance[LightAttribution.DIFFUSE.cell] * color[1];
-      diffuse[2] = irradiance[LightAttribution.DIFFUSE.cell] * color[2];
-
-      final float[] specular = new float[3];
-      specular[0] = irradiance[LightAttribution.SPECULAR.cell] * color[0];
-      specular[1] = irradiance[LightAttribution.SPECULAR.cell] * color[1];
-      specular[2] = irradiance[LightAttribution.SPECULAR.cell] * color[2];
+      final float[] color = info.intersectionObject.getColor(info, camera, depth);
+      final boolean shadowIntersects = RTStatics.shadowIntersects(camera.light, camera.objects, info, depth);
 
       final float[] ks = info.intersectionObject.getSpecular();
       final float[] kd = info.intersectionObject.getDiffuse();
+      final float[] ka = info.intersectionObject.getAmbient();
       final float a = info.intersectionObject.getShininess();
 
+      final float[] is = camera.light.emission.getColorComponents(new float[3]);
+      final float[] id = camera.light.emission.getColorComponents(new float[3]);
+      final float[] ia = camera.light.ambient.getColorComponents(new float[3]);
+
       final Vector3f L = new Vector3f();
-      L.sub(this.camera.light.origin, info.intersection);
+      L.sub(camera.light.origin, info.intersection);
       L.normalize();
 
       final Vector3f N = new Vector3f(info.normal);
@@ -67,11 +62,15 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       final double LdotN = L.dot(N);
       final double RdotVexpA = Math.pow(V.dot(R), a);
 
-      color[0] *= (kd[0] * LdotN * diffuse[0] + ks[0] * RdotVexpA * specular[0]);
-      color[1] *= (kd[1] * LdotN * diffuse[1] + ks[1] * RdotVexpA * specular[1]);
-      color[2] *= (kd[2] * LdotN * diffuse[2] + ks[2] * RdotVexpA * specular[2]);
+      final double spec = shadowIntersects ? 0f : 1f;
 
-      return new float[] { irradiance[0], irradiance[0], irradiance[0] };
+      //      System.err.println(Arrays.toString(irradiance));
+
+      color[0] *= irradiance[0] * kd[0] * LdotN * id[0] + irradiance[1] * spec * ks[0] * RdotVexpA * is[0];// + 0.4f * ia[0];
+      color[1] *= irradiance[0] * kd[1] * LdotN * id[1] + irradiance[1] * spec * ks[1] * RdotVexpA * is[1];// + 0.4f * ia[1];
+      color[2] *= irradiance[0] * kd[2] * LdotN * id[2] + irradiance[1] * spec * ks[2] * RdotVexpA * is[2];// + 0.4f * ia[2];
+
+      return color;
    }
 
    private float[] collectPhotons(final IntersectionInformation info) {
@@ -81,23 +80,22 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       final int rayCount = RTStatics.PHOTON_COLLECTION_RAY_COUNT;
 
       for (int x = 0; x < rayCount; x++) {
-         final Vector3f dir = RTStatics.getVectorMarsagliaHemisphere(info.normal);
-
-         final IntersectionInformation collectionInfo = this.camera.getClosestIntersection(null, info.intersection, dir, 0);
+         final Vector3f dir = RTStatics.getReflectionDirection(info);//RTStatics.getVectorMarsagliaHemisphere(info.normal);
+         final IntersectionInformation collectionInfo = camera.getClosestIntersection(null, info.intersection, dir, info.normal, 0);
 
          if (collectionInfo != null) {
-            temp = this.getPhotonMapLuminocity(collectionInfo);
+            temp = getPhotonMapLuminocity(collectionInfo);
             final Vector3f invDir = new Vector3f(collectionInfo.ray.direction);
             invDir.scale(-1f);
-            final float falloff = invDir.dot(info.normal);// / RTStatics.getDistanceSquared(info.intersection, collectionInfo.intersection);
+            final float falloff = invDir.dot(collectionInfo.normal) / RTStatics.getDistanceSquared(info.intersection, collectionInfo.intersection);
 
             values[0] += temp[0] * falloff;
             values[1] += temp[1] * falloff;
          }
       }
 
-      values[0] /= rayCount;
-      values[1] /= rayCount;
+      //      values[0] /= rayCount;
+      //      values[1] /= rayCount;
 
       return values;
    }
@@ -106,19 +104,24 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       final List<Photon> diffusePhotons = new ArrayList<Photon>();
       final List<Photon> specularPhotons = new ArrayList<Photon>();
 
+      float dPower = 0, sPower = 0;
+
       if (info != null) {
          // final int[] indices = this.photons.rangeSearch(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_RANGE);
-         final int[] indices = this.photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_COUNT_THRESHOLD);
+         final int[] indices = photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z },
+               RTStatics.COLLECTION_COUNT_THRESHOLD);
          Photon photon;
 
          if (indices.length > 0) {
             for (final int index : indices) {
-               photon = this.photons.get(index);
+               photon = photons.get(index);
 
                if (photon.value.cell == LightAttribution.DIFFUSE.cell) {
                   diffusePhotons.add(photon);
+                  dPower += photon.intensity;
                } else {
                   specularPhotons.add(photon);
+                  sPower += photon.intensity;
                }
             }
          }
@@ -126,8 +129,8 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
       final float[] output = new float[2];
 
-      output[0] = this.radialBasisPhotonAverageIrradiance(info, diffusePhotons);
-      output[1] = this.radialBasisPhotonAverageIrradiance(info, specularPhotons);
+      output[0] = radialBasisPhotonAverageIrradiance(info, diffusePhotons) * dPower;
+      output[1] = radialBasisPhotonAverageIrradiance(info, specularPhotons) * sPower;
 
       return output;
    }
@@ -141,13 +144,14 @@ public class GlobalIlluminationLightingModel extends LightingModel {
             maxDistanceSquared = Math.max(maxDistanceSquared, RTStatics.getDistanceSquared(info.intersection, p.location));
          }
 
-
-         final float prefix = (1f / (photons.size() * maxDistanceSquared)) * (3f / PBRTMath.F_PI);
+         final float prefix = 1f / (photons.size() * maxDistanceSquared) * 3f / PBRTMath.F_PI;
          float temp;
+         final Vector3f invDir = new Vector3f(info.ray.direction);
+         invDir.scale(-1f);
 
          for (final Photon p : photons) {
             temp = 1f - RTStatics.getDistanceSquared(info.intersection, p.location) / maxDistanceSquared;
-            total += (temp * temp * Math.abs(info.ray.direction.dot(info.normal)) * p.intensity);
+            total += temp * temp * Math.abs(invDir.dot(info.normal));
          }
 
          total *= prefix;
@@ -158,7 +162,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
    protected PhotonTree computePhotonMap() {
       final Vector3f originDirection = new Vector3f();
-      originDirection.sub(this.camera.light.origin);
+      originDirection.sub(camera.light.origin);
       originDirection.normalize();
       final List<Photon> photons = new ArrayList<Photon>();
 
@@ -168,7 +172,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       int ctr = 0;
 
       final Random random = new Random();
-      final Vector3f lightDir = new Vector3f(this.camera.light.origin);
+      final Vector3f lightDir = new Vector3f(camera.light.origin);
       lightDir.scale(-1f);
       lightDir.normalize();
 
@@ -178,31 +182,34 @@ public class GlobalIlluminationLightingModel extends LightingModel {
        */
       for (int i = 0; i < RTStatics.NUM_PHOTONS; i++) {
          Vector3f dir = RTStatics.getVectorMarsagliaHemisphere(lightDir);
-         Vector3f origin = new Vector3f(this.camera.light.origin);
+         Vector3f origin = new Vector3f(camera.light.origin);
+         Vector3f normal = null;
          float intensity = RTStatics.STARTING_INTENSITY;
-         final float[] emissionColor = this.camera.light.emission.getColorComponents(new float[3]);
+         final float[] emissionColor = camera.light.emission.getColorComponents(new float[3]);
 
          for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
             final float chance = random.nextFloat();
-            final LightAttribution value = chance < 0.5f ? LightAttribution.DIFFUSE : chance < 0.75f ? LightAttribution.SPECULAR : null;
+            final LightAttribution value = chance < 0.6f ? LightAttribution.DIFFUSE : chance < 0.9f ? LightAttribution.SPECULAR : null;
 
             if (value != null) {
-               final IntersectionInformation info = this.camera.getClosestIntersection(null, origin, dir, 0);
+               final IntersectionInformation info = camera.getClosestIntersection(null, origin, dir, normal, 0);
                if (info != null) {
-                  final float[] color = info.intersectionObject.getColor(info, this.camera, 0);
+                  final float[] color = info.intersectionObject.getColor(info, camera, 0);
                   emissionColor[0] *= color[0];
                   emissionColor[1] *= color[1];
                   emissionColor[2] *= color[2];
-
-                  final Vector3f invDir = new Vector3f(dir);
-                  invDir.scale(-1f);
-                  intensity *= info.normal.dot(invDir);
 
                   photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x,
                         dir.y, dir.z }, intensity, value));
 
                   origin = info.intersection;
                   dir = RTStatics.getReflectionDirection(info.normal, dir);
+                  normal = info.normal;
+
+                  final Vector3f invDir = new Vector3f(dir);
+                  invDir.scale(-1f);
+
+                  intensity *= info.normal.dot(invDir);
                } else {
                   m = RTStatics.NUM_REFLECTIONS;
                }

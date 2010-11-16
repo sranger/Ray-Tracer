@@ -31,8 +31,9 @@ public class RefractionMaterial extends ColorInformation {
       if (info == null) {
          return camera.light.ambient.getColorComponents(new float[3]);
       } else {
-         final Vector3f refractionDirection = this.getRefractionDirection(info);
-         final IntersectionInformation closest = (refractionDirection == null) ? null : camera.getClosestIntersection(info.intersectionObject, info.intersection, refractionDirection, depth + 1);
+         final Vector3f refractionDirection = getRefractionDirection(info);
+         final IntersectionInformation closest = refractionDirection == null ? null : camera.getClosestIntersection(info.intersectionObject, info.intersection,
+               refractionDirection, info.normal, depth + 1);
 
          if (closest == null) {
             return camera.light.ambient.getColorComponents(new float[3]);
@@ -42,9 +43,9 @@ public class RefractionMaterial extends ColorInformation {
             if (info.normal.dot(info.ray.direction) <= 0f) {
                final float distance = RTStatics.getDistance(info.intersection, closest.intersection);
                final float[] color = info.intersectionObject.getDiffuse();
-               color[0] *= (0.15f * -distance);
-               color[1] *= (0.15f * -distance);
-               color[2] *= (0.15f * -distance);
+               color[0] *= 0.15f * -distance;
+               color[1] *= 0.15f * -distance;
+               color[2] *= 0.15f * -distance;
 
                returnColor[0] += Math.exp(color[0]);
                returnColor[1] += Math.exp(color[1]);
@@ -70,14 +71,14 @@ public class RefractionMaterial extends ColorInformation {
       final Vector3f outDir = new Vector3f();
 
       if (cosI <= 0) {
-         n = this.refractionIndex / this.aetherIndex;
+         n = refractionIndex / aetherIndex;
          cosI = -cosI;
       } else {
-         n = this.aetherIndex / this.refractionIndex;
+         n = aetherIndex / refractionIndex;
          surfaceNormal.scale(-1f);
       }
 
-      final double snellRoot = 1.0 - (n * n * (1.0 - cosI * cosI));
+      final double snellRoot = 1.0 - n * n * (1.0 - cosI * cosI);
 
       if (snellRoot < 0) {
          outDir.set(RTStatics.getReflectionDirection(surfaceNormal, inDir));

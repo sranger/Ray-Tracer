@@ -122,7 +122,8 @@ public class PhotonTree {
 
          // create the left and right children nodes based on the split position
          left = medianIndex == 0 ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, 0, medianIndex), minChildren, maxDepth, currentDepth + 1);
-         right = medianIndex >= this.indices.length ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, medianIndex, this.indices.length), minChildren, maxDepth, currentDepth + 1);
+         right = medianIndex >= this.indices.length ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, medianIndex, this.indices.length),
+               minChildren, maxDepth, currentDepth + 1);
       } else {
          // invalidate children info if this node is a leaf node
          left = null;
@@ -431,7 +432,8 @@ public class PhotonTree {
 
       // create random vertices
       for (int i = 0; i < verts.length; i++) {
-         verts[i] = new Photon(new float[] { 0, 0, 0 }, new float[] { r.nextInt(1000), r.nextInt(1000), r.nextInt(1000) }, new float[] { 0, 0, 0 }, 10, LightAttribution.DIFFUSE);
+         verts[i] = new Photon(new float[] { 0, 0, 0 }, new float[] { r.nextInt(1000), r.nextInt(1000), r.nextInt(1000) }, new float[] { 0, 0, 0 }, 10,
+               LightAttribution.DIFFUSE);
       }
 
       System.out.println("vert count: " + verts.length);

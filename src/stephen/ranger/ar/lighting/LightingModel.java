@@ -11,7 +11,7 @@ public class LightingModel {
    }
 
    public float[] getPixelColor(final IntersectionInformation info, final int depth) {
-      return info.intersectionObject.getColor(info, this.camera, depth);
+      return info.intersectionObject.getColor(info, camera, depth);
    }
 
    public void setCamera(final Camera camera) {

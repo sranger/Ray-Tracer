@@ -34,7 +34,7 @@ import javax.swing.event.ListSelectionListener;
 import stephen.ranger.ar.RayTracer.Scenes;
 
 public class RayTracerInterface extends JFrame {
-   public RayTracerInterface(final RayTracer rayTracer, final int width, final int height, final int x, final int y) {
+   public RayTracerInterface(final RayTracer rayTracer, final int width, final int height, final int x, final int y, final int imageWidth, final int imageHeight) {
       setTitle("Ray-Tracer");
       this.setLocation(x, y);
 
@@ -54,9 +54,9 @@ public class RayTracerInterface extends JFrame {
       multiSamplesField.setMaximumSize(new Dimension(200, 20));
       final JSpinner brdfSamplesField = new JSpinner(new SpinnerNumberModel(1, 1, 205, 1));
       brdfSamplesField.setMaximumSize(new Dimension(200, 20));
-      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 128));
+      final JSpinner imageXField = new JSpinner(new SpinnerNumberModel(imageWidth, 1, 10240, 128));
       imageXField.setMaximumSize(new Dimension(200, 20));
-      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(1024, 1, 10240, 128));
+      final JSpinner imageYField = new JSpinner(new SpinnerNumberModel(imageHeight, 1, 10240, 128));
       imageYField.setMaximumSize(new Dimension(200, 20));
 
       final JList sceneList = new JList(RayTracer.Scenes.values());
@@ -100,7 +100,7 @@ public class RayTracerInterface extends JFrame {
       final JScrollPane imagePane = new JScrollPane(iconLabel);
       imagePane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
       imagePane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-      imagePane.setPreferredSize(new Dimension(1050, 1050));
+      imagePane.setPreferredSize(new Dimension(imageWidth, imageHeight));
 
       final JButton renderButton = new JButton("Render Scene");
       final JButton closeButton = new JButton("Close");
@@ -129,8 +129,8 @@ public class RayTracerInterface extends JFrame {
             final ActionListener listener = new ActionListener() {
                @Override
                public void actionPerformed(final ActionEvent event) {
-                  rayTracer.camera = new Camera(rayTracer.currentScene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(), RTStatics.NEAR_PLANE, (Integer) imageXField
-                        .getValue(), (Integer) imageYField.getValue());
+                  rayTracer.camera = new Camera(rayTracer.currentScene, (Integer) multiSamplesField.getValue(), (Integer) brdfSamplesField.getValue(),
+                        RTStatics.NEAR_PLANE, (Integer) imageXField.getValue(), (Integer) imageYField.getValue());
                   rayTracer.camera.addActionListener(new ActionListener() {
                      @Override
                      public void actionPerformed(final ActionEvent event) {
