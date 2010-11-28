@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.Map.Entry;
 
 import stephen.ranger.ar.RTStatics;
 import stephen.ranger.ar.RTStatics.SeparationAxis;
@@ -48,7 +48,7 @@ public class PhotonTree {
     */
    public PhotonTree(final Photon[] photons) {
       // use the log base 2 value of the points length to get a balanced tree with one node per leaf.
-      // Multiply by 0.8 to decrease depth so it isn't too deep
+      // Multiply by 0.85 to decrease depth so it isn't too deep
       this(photons, null, 1, (int) (Math.log10(photons.length) / Math.log10(2) * 0.8), 0);
    }
 
@@ -96,10 +96,10 @@ public class PhotonTree {
 
       // store the given points and indices. if indices are null, create an array containing a reference to all points in the points array
       this.photons = photons;
-      this.indices = indices == null ? createIndicesArray(photons.length) : indices;
+      this.indices = indices == null ? this.createIndicesArray(photons.length) : indices;
 
       // create children nodes if the number of indices for this node is greater than the minChildren value and the current depth is less than the max depth
-      if (this.indices.length > minChildren && currentDepth < maxDepth) {
+      if ((this.indices.length > minChildren) && (currentDepth < maxDepth)) {
          // get the minMax values for this set of indices
          final float minMax[][] = this.getMinMax(photons, this.indices);
          // get the distance between the min and max for each axis
@@ -108,34 +108,68 @@ public class PhotonTree {
          final float zSpan = minMax[1][2] - minMax[0][2];
 
          // determine the split axis based on the max span distance for each axis
-         splitAxis = xSpan >= ySpan && xSpan >= zSpan ? SeparationAxis.X : ySpan >= xSpan && ySpan >= zSpan ? SeparationAxis.Y : SeparationAxis.Z;
+         this.splitAxis = (xSpan >= ySpan) && (xSpan >= zSpan) ? SeparationAxis.X : (ySpan >= xSpan) && (ySpan >= zSpan) ? SeparationAxis.Y : SeparationAxis.Z;
 
          // sort our indices array based on the selected split axis
-         RTStatics.quicksort(photons, this.indices, 0, this.indices.length - 1, splitAxis);
+         RTStatics.quicksort(photons, this.indices, 0, this.indices.length - 1, this.splitAxis);
 
          // set the split index as the center value for the indices array
          final int medianIndex = this.indices.length / 2;
          // store the location of the center point
          final float[] medianPointLocation = photons[this.indices[medianIndex]].location;
          // set the split value as the value of the center point's splitAxis value
-         medianValue = medianPointLocation[splitAxis.pos];
+         this.medianValue = medianPointLocation[this.splitAxis.pos];
 
          // create the left and right children nodes based on the split position
-         left = medianIndex == 0 ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, 0, medianIndex), minChildren, maxDepth, currentDepth + 1);
-         right = medianIndex >= this.indices.length ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, medianIndex, this.indices.length),
-               minChildren, maxDepth, currentDepth + 1);
+         this.left = medianIndex == 0 ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, 0, medianIndex), minChildren, maxDepth, currentDepth + 1);
+         this.right = medianIndex >= this.indices.length ? null : new PhotonTree(photons, Arrays.copyOfRange(this.indices, medianIndex, this.indices.length), minChildren, maxDepth, currentDepth + 1);
       } else {
          // invalidate children info if this node is a leaf node
-         left = null;
-         right = null;
-         splitAxis = null;
-         medianValue = 0;
+         this.left = null;
+         this.right = null;
+         this.splitAxis = null;
+         this.medianValue = 0;
 
          // increment debugging values
          leafNodes++;
          leafNodeChildrenCount += this.indices.length;
          maxTreeDepth = Math.max(maxTreeDepth, currentDepth);
       }
+   }
+
+   /**
+    * This method searches the kd-tree for the closest <code>k</code> photons using a linar search
+    * through the photon array. It is very slow, however, kNearest isn't working at the moment...
+    * 
+    * @param location   The location to search for photons at
+    * @param k          The number of photons to search for
+    * @return           the indices of the photons found. The length will be <= k
+    */
+   public int[] kNearestLinear(final float[] location, final int k) {
+      final SortedMap<Integer, Float> heap = new TreeMap<Integer, Float>();
+
+      for (int i = 0; i < this.photons.length; i++) {
+         final float distanceSquared = RTStatics.getDistanceSquared(this.photons[i].location, location);
+         if ((distanceSquared < RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE) && ((heap.size() < k) || (heap.get(heap.lastKey()) > distanceSquared))) {
+            if (heap.size() < k) {
+               heap.put(i, distanceSquared);
+            } else {
+               heap.remove(heap.lastKey());
+               heap.put(i, distanceSquared);
+            }
+         }
+      }
+
+      final int[] foundIndices = new int[heap.size()];
+      int ctr = 0;
+
+      // fill the return array with the indices in the heap
+      for (final Entry<Integer, Float> entry : heap.entrySet()) {
+         foundIndices[ctr] = entry.getKey();
+         ctr++;
+      }
+
+      return foundIndices;
    }
 
    /**
@@ -188,44 +222,99 @@ public class PhotonTree {
 
    /**
     * Returns the closest objects to the given location. The count is the max number of neighbors to find.
-    * 
-    * @param heap       The sorted map that will be used to store the found points
-    * @param location   The location to search for its nearest neighbors
-    * @param k          The maximum number of points to search for
-    * @return           The k nearest neighbors to the given location
+    *
+    * @param heap The sorted map that will be used to store the found points
+    * @param location The location to search for its nearest neighbors
+    * @param k The maximum number of points to search for
+    * @return The k nearest neighbors to the given location
     */
    private void kNearest(final SortedMap<Integer, Float> heap, final float[] location, final int k) {
+      final float max2 = RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE;
+
+      if (this.splitAxis != null) {
+         final float distanceToMedian = location[this.splitAxis.pos] - this.medianValue;
+         final float d2 = distanceToMedian * distanceToMedian;
+
+         if (distanceToMedian < 0) {
+            if (this.left != null) {
+               this.left.kNearest(heap, location, k);
+            }
+
+            final float currentMax2 = (heap.size() < k) ? max2 : heap.get(heap.lastKey());
+
+            if (((this.right != null) && (d2 < max2) && ((heap.size() < k) || (d2 < currentMax2)))) {
+               this.right.kNearest(heap, location, k);
+            }
+         } else {
+            if (this.right != null) {
+               this.right.kNearest(heap, location, k);
+            }
+
+            final float currentMax2 = (heap.size() < k) ? max2 : heap.get(heap.lastKey());
+
+            if ((this.left != null) && (d2 < max2) && ((heap.size() < k) || (d2 < currentMax2))) {
+               this.left.kNearest(heap, location, k);
+            }
+         }
+      } else {
+         for (int i = 0; i < this.photons.length; i++) {
+            int heapSize = heap.size();
+            final float d2 = RTStatics.getDistanceSquared(this.photons[i].location, location);
+            float currentMax2 = (heapSize < k) ? max2 : heap.get(heap.lastKey());
+
+            if ((d2 < currentMax2)) {
+               if ((heapSize < k) || (d2 < currentMax2)) {
+                  if (heapSize < k) {
+                     heapSize++;
+                  } else {
+                     heap.remove(heap.lastKey());
+                  }
+
+                  heap.put(i, d2);
+                  currentMax2 = Math.max(d2, currentMax2);
+               }
+            }
+         }
+      }
+   }
+
+   /**
+    * Returns the closest objects to the given location. The count is the max number of neighbors to find.
+    *
+    * @param heap The sorted map that will be used to store the found points
+    * @param location The location to search for its nearest neighbors
+    * @param k The maximum number of points to search for
+    * @return The k nearest neighbors to the given location
+    */
+   private void kNearestOLD(final SortedMap<Integer, Float> heap, final float[] location, final int k) {
       final float m2 = RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE;
 
       // if the current node is not a leaf node, search its children
-      if (splitAxis != null) {
+      if (this.splitAxis != null) {
          // get the distance from the search location to this nodes' median value
-         final float distanceToMedian = location[splitAxis.pos] - medianValue;
+         final float distanceToMedian = location[this.splitAxis.pos] - this.medianValue;
          final float d2 = distanceToMedian * distanceToMedian;
          final float last2 = heap.size() > 0 ? heap.get(heap.lastKey()) : m2;
 
-         // if either left or right are not null, do search (should always be true if this is not a leaf node)
-         if (left != null || right != null) {
-            // if the location is on the left side of the median, search the left node first
-            // else, search right first
-            if (distanceToMedian < 0) {
-               // if left is not null, search left
-               if (left != null) {
-                  left.kNearest(heap, location, k);
-               }
-               // right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
-               if (right != null && (heap.size() < k || d2 < last2) && Math.abs(distanceToMedian) <= m2) {
-                  right.kNearest(heap, location, k);
-               }
-            } else {
-               // if right is not null, search right
-               if (right != null) {
-                  right.kNearest(heap, location, k);
-               }
-               // if right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
-               if (left != null && (heap.size() < k || d2 < last2) && Math.abs(distanceToMedian) <= m2) {
-                  left.kNearest(heap, location, k);
-               }
+         // if the location is on the left side of the median, search the left node first
+         // else, search right first
+         if (distanceToMedian <= 0) {
+            // if left is not null, search left
+            if (this.left != null) {
+               this.left.kNearestOLD(heap, location, k);
+            }
+            // right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
+            if ((this.right != null) && ((heap.size() < k) || (d2 < last2)) && (d2 <= m2)) {
+               this.right.kNearestOLD(heap, location, k);
+            }
+         } else {
+            // if right is not null, search right
+            if (this.right != null) {
+               this.right.kNearestOLD(heap, location, k);
+            }
+            // if right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
+            if ((this.left != null) && ((heap.size() < k) || (d2 < last2)) && (d2 <= m2)) {
+               this.left.kNearestOLD(heap, location, k);
             }
          }
       }
@@ -235,12 +324,12 @@ public class PhotonTree {
          float distanceSquared, x, y, z;
          float[] tempPos;
          int heapSize = heap.size();
-         float currentMax = heapSize == 0 ? RTStatics.COLLECTION_RANGE : heap.get(heap.lastKey());
+         float currentMax = heapSize == 0 ? RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE : heap.get(heap.lastKey());
 
          // iterate over all the children indices
-         for (final int index : indices) {
+         for (final int index : this.indices) {
             // get current point's location
-            tempPos = photons[index].location;
+            tempPos = this.photons[index].location;
             x = tempPos[0] - location[0];
             y = tempPos[1] - location[1];
             z = tempPos[2] - location[2];
@@ -248,13 +337,13 @@ public class PhotonTree {
             distanceSquared = x * x + y * y + z * z;
 
             // if the heap isn't full, insert the current point
-            if (heapSize < k && distanceSquared <= m2) {
+            if ((heapSize < k) && (distanceSquared <= m2)) {
                heap.put(index, distanceSquared);
                heapSize++;
             }
             // else if the distance to the current point is less than the furthest point in the heap,
             // remove the furthest point and insert the current point
-            else if (distanceSquared < currentMax && distanceSquared <= m2) {
+            else if ((distanceSquared < currentMax) && (distanceSquared <= m2)) {
                heap.remove(heap.lastKey());
                heap.put(index, distanceSquared);
                currentMax = heap.get(heap.lastKey());
@@ -289,32 +378,32 @@ public class PhotonTree {
     */
    private void rangeSearch(final Collection<Integer> list, final float[] location, final float range) {
       // if this node is not a leaf node
-      if (splitAxis != null) {
+      if (this.splitAxis != null) {
          // get distance from search location to current node's split value
-         final float distanceToMedian = location[splitAxis.pos] - medianValue;
+         final float distanceToMedian = location[this.splitAxis.pos] - this.medianValue;
 
          // if left or right are not null (should always be true for a non-leaf node)
-         if (left != null || right != null) {
+         if ((this.left != null) || (this.right != null)) {
             // if the search location is on the left of the split axis, search left first
             if (distanceToMedian < 0) {
                // if left is not null, search on it
-               if (left != null) {
-                  left.rangeSearch(list, location, range);
+               if (this.left != null) {
+                  this.left.rangeSearch(list, location, range);
                }
                // if right is not null and the distance from the search location is less than or equal to the search range
-               if (right != null && distanceToMedian * distanceToMedian <= range * range) {
-                  right.rangeSearch(list, location, range);
+               if ((this.right != null) && (distanceToMedian * distanceToMedian <= range * range)) {
+                  this.right.rangeSearch(list, location, range);
                }
             }
             // else, the search location is on the right, so search right first
             else {
                // if right is not null
-               if (right != null) {
-                  right.rangeSearch(list, location, range);
+               if (this.right != null) {
+                  this.right.rangeSearch(list, location, range);
                }
                // if left is not null and the distance from the search location is less than or equal to the search range
-               if (left != null && distanceToMedian * distanceToMedian <= range * range) {
-                  left.rangeSearch(list, location, range);
+               if ((this.left != null) && (distanceToMedian * distanceToMedian <= range * range)) {
+                  this.left.rangeSearch(list, location, range);
                }
             }
          }
@@ -326,8 +415,8 @@ public class PhotonTree {
          float[] tempPos;
 
          // iterate over children indices and check them against the range
-         for (final int index : indices) {
-            tempPos = photons[index].location;
+         for (final int index : this.indices) {
+            tempPos = this.photons[index].location;
             x = tempPos[0] - location[0];
             y = tempPos[1] - location[1];
             z = tempPos[2] - location[2];
@@ -415,8 +504,8 @@ public class PhotonTree {
     */
    public final Photon get(final int index) {
       // if index is valid, return the point at the given index, else, return null
-      if (index >= 0 && index < photons.length) {
-         return photons[index];
+      if ((index >= 0) && (index < this.photons.length)) {
+         return this.photons[index];
       } else {
          return null;
       }
@@ -430,14 +519,13 @@ public class PhotonTree {
     */
    public static void main(final String[] args) {
       // create vert array with a power of two length (to show off default max depth balancing)
-      final Photon[] verts = new Photon[(int) Math.pow(2, 17)];
+      final Photon[] verts = new Photon[(int) Math.pow(2, 19)];
       // create random object used to create verts
       final Random r = new Random(1234567890);
 
       // create random vertices
       for (int i = 0; i < verts.length; i++) {
-         verts[i] = new Photon(new float[] { 0, 0, 0 }, new float[] { r.nextInt(1000), r.nextInt(1000), r.nextInt(1000) }, new float[] { 0, 0, 0 }, 10,
-               LightAttribution.DIFFUSE);
+         verts[i] = new Photon(new float[] { 0, 0, 0 }, new float[] { r.nextInt(1000), r.nextInt(1000), r.nextInt(1000) }, new float[] { 0, 0, 0 }, 10, LightAttribution.DIFFUSE);
       }
 
       System.out.println("vert count: " + verts.length);
@@ -450,22 +538,43 @@ public class PhotonTree {
       final PhotonTree kdtree = new PhotonTree(verts);
       long end = System.nanoTime();
 
+      RTStatics.COLLECTION_RANGE = Float.MAX_VALUE;
+      final int searchCount = 1000;
       // print out build duration
       System.out.println("creation time: " + (end - start) / 1000000000. + " seconds");
 
-      // search for the five nearest points in the kdtree and keep track of duration
+      // search for the nearest points in the kdtree and keep track of duration
       start = System.nanoTime();
-      final SortedMap<Integer, Float> heap = new TreeMap<Integer, Float>();
-      kdtree.kNearest(heap, location, 5);
+      final int[] indices = kdtree.kNearest(location, searchCount);
       end = System.nanoTime();
+      final double kNearestDuration = (end - start) / 1000000000.;
 
       // print out the five nearest points and the search duration
-      System.out.println("5 nearest at: " + Arrays.toString(location) + "\n----------------------------------------");
-      for (final Entry<Integer, Float> entry : heap.entrySet()) {
-         System.out.println(kdtree.get(entry.getKey()));
+      System.out.println("\n----------------------------------------\n" + searchCount + " nearest at: " + Arrays.toString(location));
+      System.out.println("search duration: " + kNearestDuration + " seconds\n----------------------------------------\n\n");
+
+      start = System.nanoTime();
+      final int[] indicesLinear = kdtree.kNearestLinear(location, searchCount);
+      end = System.nanoTime();
+      final double kNearestLinearDuration = (end - start) / 1000000000.;
+
+      // print out the five nearest points and the search duration
+      System.out.println("\n----------------------------------------\n" + searchCount + " nearest at: " + Arrays.toString(location));
+      System.out.println("linear search duration: " + kNearestLinearDuration + " seconds\n----------------------------------------");
+
+      Arrays.sort(indices);
+      Arrays.sort(indicesLinear);
+
+      boolean isEqual = (indices.length == indicesLinear.length);
+
+      if (isEqual) {
+         for (int i = 0; (i < indices.length) && isEqual; i++) {
+            isEqual = indices[i] == indicesLinear[i];
+         }
       }
 
-      System.out.println("----------------------------------------\nsearch duration: " + (end - start) / 1000000000. + " seconds");
+      System.out.println("\nkNearest duration : kNearestLinearDuration == " + (int) (kNearestDuration / kNearestLinearDuration * 100.0) + "%");
+      System.out.println("kNearest output == kNearestLinear output? " + isEqual + "\n");
 
       // print out debugging stats for the kdtree
       System.out.println("max tree depth:           " + kdtree.maxTreeDepth);
