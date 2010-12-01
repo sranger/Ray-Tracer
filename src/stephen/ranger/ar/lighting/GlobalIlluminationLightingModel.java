@@ -34,8 +34,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
    @Override
    public float[] getPixelColor(final IntersectionInformation info, final int depth) {
-      float[] color = new float[] { 0, 0, 0 };
-      final float[] temp;
+      final float[] color = new float[] { 0, 0, 0 };
       final float[] diffuse, specular;
 
       if (info != null) {
@@ -43,31 +42,27 @@ public class GlobalIlluminationLightingModel extends LightingModel {
          // diffuse = info.intersectionObject.getDiffuse();
          specular = info.intersectionObject.getSpecular();
 
-         // final float[] irradiance = this.collectPhotons(info);
-         //
-         // color[0] = irradiance[0] * diffuse[0]; // indirect diffuse
-         // color[1] = irradiance[0] * diffuse[1];
-         // color[2] = irradiance[0] * diffuse[2];
-         //
-         // color[0] += irradiance[1] * specular[0]; // indirect specular
-         // color[1] += irradiance[1] * specular[1];
-         // color[2] += irradiance[1] * specular[2];
+         final float[] temp = this.getPhotonMapLuminocity(info);
+         final Vector3f invDir = new Vector3f(info.ray.direction);
+         invDir.scale(-1f);
+         final float falloff = invDir.dot(info.normal);
 
-         // temp = this.getPhotonMapLuminocity(info);
-         // final Vector3f invDir = new Vector3f(info.ray.direction);
-         // invDir.scale(-1f);
-         // final float falloff = invDir.dot(info.normal);
-         //
-         // color[0] += temp[0] * falloff * diffuse[0]; // direct diffuse
-         // color[1] += temp[0] * falloff * diffuse[1];
-         // color[2] += temp[0] * falloff * diffuse[2];
-         //
-         // color[0] += temp[1] * falloff * specular[0]; // direct specular
-         // color[1] += temp[1] * falloff * specular[1];
-         // color[2] += temp[1] * falloff * specular[2];
+         color[0] += temp[0] * falloff * diffuse[0]; // direct diffuse
+         color[1] += temp[0] * falloff * diffuse[1];
+         color[2] += temp[0] * falloff * diffuse[2];
+
+         final float[] irradiance = this.collectPhotons(info);
+
+         color[0] += irradiance[0] * diffuse[0]; // indirect diffuse
+         color[1] += irradiance[0] * diffuse[1];
+         color[2] += irradiance[0] * diffuse[2];
+
+         color[0] += irradiance[1] * specular[0]; // indirect specular
+         color[1] += irradiance[1] * specular[1];
+         color[2] += irradiance[1] * specular[2];
 
          // get photons and their colors
-         color = this.getPhotonLocations(info);
+         // color = this.getPhotonLocations(info);
       }
 
       return color;
@@ -106,7 +101,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       return values;
    }
 
-   public float[] getPhotonLocations(final IntersectionInformation info) {
+   private float[] getPhotonLocations(final IntersectionInformation info) {
       final int[] indices = this.photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, 1);
 
       if ((indices.length > 0) && (indices[0] >= 0)) {
@@ -127,6 +122,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
       if (info != null) {
          final int[] indices = this.photons.kNearest(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, RTStatics.COLLECTION_COUNT_THRESHOLD);
+         // final int[] indices = new int[] { this.photons.nearestNeighbor(new float[] { info.intersection.x, info.intersection.y, info.intersection.z }) };
          Photon photon;
 
          if (indices.length > 0) {
@@ -147,7 +143,20 @@ public class GlobalIlluminationLightingModel extends LightingModel {
       output[0] = this.radialBasisPhotonAverageIrradiance(info, diffusePhotons);
       output[1] = this.radialBasisPhotonAverageIrradiance(info, specularPhotons);
 
+      //      output[0] = this.average(diffusePhotons);
+      //      output[1] = this.average(specularPhotons);
+
       return output;
+   }
+
+   private float average(final List<Photon> photons) {
+      float intensity = 0;
+
+      for (final Photon p : photons) {
+         intensity += p.intensity;
+      }
+
+      return (photons.size() == 0) ? 0 : intensity / photons.size();
    }
 
    private float radialBasisPhotonAverageIrradiance(final IntersectionInformation info, final List<Photon> photons) {
@@ -164,7 +173,7 @@ public class GlobalIlluminationLightingModel extends LightingModel {
          final Vector3f invDir = new Vector3f();
 
          for (final Photon p : photons) {
-            temp = 1f - RTStatics.getDistanceSquared(info.intersection, p.location) / maxDistanceSquared;
+            temp = RTStatics.getDistanceSquared(info.intersection, p.location) / maxDistanceSquared;
             invDir.set(p.incomingDir);
             invDir.scale(-1f);
             total += temp * temp * Math.abs(invDir.dot(info.normal)) * p.intensity;
@@ -197,7 +206,9 @@ public class GlobalIlluminationLightingModel extends LightingModel {
        * Random photons
        */
       for (int i = 0; i < RTStatics.NUM_PHOTONS; i++) {
-         Vector3f dir = RTStatics.getVectorMarsagliaHemisphere(lightDir);
+         // Vector3f dir = RTStatics.getVectorMarsagliaHemisphere(lightDir);
+         Vector3f dir = new Vector3f();
+         RTStatics.cosSampleHemisphere(dir, lightDir, new Random());
          Vector3f origin = new Vector3f(this.camera.light.origin);
          Vector3f normal = null;
          float intensity = RTStatics.STARTING_INTENSITY;
@@ -206,9 +217,9 @@ public class GlobalIlluminationLightingModel extends LightingModel {
 
          for (int m = 0; m < RTStatics.NUM_REFLECTIONS; m++) {
             final float chance = random.nextFloat();
-            final LightAttribution value = chance < 0.5f ? LightAttribution.DIFFUSE : chance < 0.8f ? LightAttribution.SPECULAR : null;
+            final LightAttribution value = chance < 0.8f ? LightAttribution.DIFFUSE : chance < 0.8f ? LightAttribution.SPECULAR : null;
 
-            if (value != null) {
+            if ((value != null) && (intensity > 0f)) {
                final IntersectionInformation info = this.camera.getClosestIntersection(null, origin, dir, normal, 0);
                if (info != null) {
                   final float[] color = info.intersectionObject.getColor(info, this.camera, 0);
@@ -216,8 +227,8 @@ public class GlobalIlluminationLightingModel extends LightingModel {
                   emissionColor[1] *= color[1];
                   emissionColor[2] *= color[2];
 
-                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x,
-                        dir.y, dir.z }, intensity * weight, value));
+                  photons.add(new Photon(emissionColor, new float[] { info.intersection.x, info.intersection.y, info.intersection.z }, new float[] { dir.x, dir.y, dir.z }, new float[] {
+                        info.normal.x, info.normal.y, info.normal.z }, intensity * weight, value));
 
                   origin = info.intersection;
                   dir = RTStatics.getReflectionDirection(info.normal, dir);
@@ -225,9 +236,9 @@ public class GlobalIlluminationLightingModel extends LightingModel {
                   normal = info.normal;
 
                   final Vector3f invDir = new Vector3f(dir);
-                  //                  invDir.scale(-1f);
+                  invDir.scale(-1f);
 
-                  intensity *= info.normal.dot(invDir);
+                  intensity *= Math.max(0f, info.normal.dot(invDir));
                } else {
                   m = RTStatics.NUM_REFLECTIONS;
                }

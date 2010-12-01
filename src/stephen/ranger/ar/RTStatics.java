@@ -29,11 +29,11 @@ public class RTStatics {
    public static final Matrix4f OPENGL_ROTATION = new Matrix4f(RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), 180), new Vector3f(), 0f);
 
    // photon mapping settings
-   public static float COLLECTION_RANGE = 25;// Float.MAX_VALUE;
+   public static float COLLECTION_RANGE = 50f;// Float.MAX_VALUE;
    public static int NUM_REFLECTIONS = 5;
-   public static int NUM_PHOTONS = 100000;
-   public static int COLLECTION_COUNT_THRESHOLD = 100;
-   public static float STARTING_INTENSITY = 10f;
+   public static int NUM_PHOTONS = 250000;
+   public static int COLLECTION_COUNT_THRESHOLD = 10;
+   public static float STARTING_INTENSITY = 100f;
    public static int PHOTON_COLLECTION_RAY_COUNT = 4;
 
    private static JProgressBar PROGRESS_BAR;
@@ -699,6 +699,9 @@ public class RTStatics {
       final float yb = (float) (sinTheta * Math.sin(phi));
 
       result.set(xb, yb, cosTheta);
+
+      final Vector3f worldVector = RTStatics.shadingCoordsToWorld(result, normal, PBRTMath.getNormalTangent(normal));
+      result.set(worldVector);
 
       return (float) (cosTheta / Math.PI);
    }

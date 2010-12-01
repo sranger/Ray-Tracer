@@ -35,7 +35,7 @@ import stephen.ranger.ar.RayTracer.Scenes;
 
 public class RayTracerInterface extends JFrame {
    public RayTracerInterface(final RayTracer rayTracer, final int width, final int height, final int x, final int y, final int imageWidth, final int imageHeight) {
-      setTitle("Ray-Tracer");
+      this.setTitle("Ray-Tracer");
       this.setLocation(x, y);
 
       final JPanel sidePanel = new JPanel();
@@ -257,14 +257,14 @@ public class RayTracerInterface extends JFrame {
       sidePanel.add(saveButton);
       sidePanel.add(checkboxPanel);
 
-      getContentPane().setLayout(new BorderLayout());
-      getContentPane().add(sidePanel, BorderLayout.WEST);
-      getContentPane().add(imagePanel, BorderLayout.CENTER);
-      getContentPane().add(scrollPane, BorderLayout.SOUTH);
+      this.getContentPane().setLayout(new BorderLayout());
+      this.getContentPane().add(sidePanel, BorderLayout.WEST);
+      this.getContentPane().add(imagePanel, BorderLayout.CENTER);
+      this.getContentPane().add(scrollPane, BorderLayout.SOUTH);
 
-      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-      pack();
+      this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+      this.pack();
       this.setSize(width, height);
-      setVisible(true);
+      this.setVisible(true);
    }
 }
