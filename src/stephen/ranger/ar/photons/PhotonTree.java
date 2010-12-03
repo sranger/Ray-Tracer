@@ -91,16 +91,16 @@ public class PhotonTree {
    private PhotonTree(final Photon[] photons, final int[] indices, final int minChildren, final int maxDepth, final int currentDepth) {
       // if the depth is 0, reset the static debug values
       if (currentDepth == 0) {
-         leafNodes = 0;
-         leafNodeChildrenCount = 0;
-         maxTreeDepth = 0;
+         PhotonTree.leafNodes = 0;
+         PhotonTree.leafNodeChildrenCount = 0;
+         PhotonTree.maxTreeDepth = 0;
       }
 
-      this.depth = currentDepth;
+      depth = currentDepth;
 
       // store the given points and indices. if indices are null, create an array containing a reference to all points in the points array
       this.photons = photons;
-      this.indices = indices == null ? this.createIndicesArray(photons.length) : indices;
+      this.indices = indices == null ? createIndicesArray(photons.length) : indices;
 
       // create children nodes if the number of indices for this node is greater than the minChildren value and the current depth is less than the max depth
       if ((this.indices.length > minChildren) && (currentDepth < maxDepth)) {
@@ -112,17 +112,17 @@ public class PhotonTree {
          final float zSpan = minMax[1][2] - minMax[0][2];
 
          // determine the split axis based on the max span distance for each axis
-         this.splitAxis = (xSpan >= ySpan) && (xSpan >= zSpan) ? SeparationAxis.X : (ySpan >= xSpan) && (ySpan >= zSpan) ? SeparationAxis.Y : SeparationAxis.Z;
+         splitAxis = (xSpan >= ySpan) && (xSpan >= zSpan) ? SeparationAxis.X : (ySpan >= xSpan) && (ySpan >= zSpan) ? SeparationAxis.Y : SeparationAxis.Z;
 
          // sort our indices array based on the selected split axis
-         RTStatics.quicksort(photons, this.indices, 0, this.indices.length - 1, this.splitAxis);
+         RTStatics.quicksort(photons, this.indices, 0, this.indices.length - 1, splitAxis);
 
          // set the split index as the center value for the indices array
          final int medianIndex = this.indices.length / 2;
          // store the location of the center point
          final float[] medianPointLocation = photons[this.indices[medianIndex]].location;
          // set the split value as the value of the center point's splitAxis value
-         this.medianValue = medianPointLocation[this.splitAxis.pos];
+         medianValue = medianPointLocation[splitAxis.pos];
 
          // create the left and right children nodes based on the split position
          final int[] left = medianIndex == 0 ? null : Arrays.copyOfRange(this.indices, 0, medianIndex);
@@ -132,15 +132,15 @@ public class PhotonTree {
          this.right = right == null ? null : new PhotonTree(photons, right, minChildren, maxDepth, currentDepth + 1);
       } else {
          // invalidate children info if this node is a leaf node
-         this.left = null;
-         this.right = null;
-         this.splitAxis = null;
-         this.medianValue = 0;
+         left = null;
+         right = null;
+         splitAxis = null;
+         medianValue = 0;
 
          // increment debugging values
-         leafNodes++;
-         leafNodeChildrenCount += this.indices.length;
-         maxTreeDepth = Math.max(maxTreeDepth, currentDepth);
+         PhotonTree.leafNodes++;
+         PhotonTree.leafNodeChildrenCount += this.indices.length;
+         PhotonTree.maxTreeDepth = Math.max(PhotonTree.maxTreeDepth, currentDepth);
       }
    }
 
@@ -154,10 +154,14 @@ public class PhotonTree {
     */
    public int[] kNearestLinear(final float[] location, final int k) {
       final SortedSet<PhotonPosition> heap = new TreeSet<PhotonPosition>();
+      final float max2 = RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE;
 
-      for (final int index : this.indices) {
-         final float distanceSquared = RTStatics.getDistanceSquared(this.photons[index].location, location);
-         if ((heap.size() < k) || (heap.last().distanceSquared > distanceSquared)) {
+      for (final int index : indices) {
+         final float distanceSquared = RTStatics.getDistanceSquared(photons[index].location, location);
+         final int heapSize = heap.size();
+
+         if ((heapSize < k && distanceSquared <= max2)
+               || (heapSize == k && heap.last().distanceSquared > distanceSquared)) {
             if (heap.size() >= k) {
                heap.remove(heap.last());
             }
@@ -236,31 +240,31 @@ public class PhotonTree {
     */
    private float kNearest(final SortedSet<PhotonPosition> heap, final float[] location, final int k, float max2) {
 
-      if (this.splitAxis != null) {
-         final float distanceToMedian = location[this.splitAxis.pos] - this.medianValue;
+      if (splitAxis != null) {
+         final float distanceToMedian = location[splitAxis.pos] - medianValue;
          final float d2 = distanceToMedian * distanceToMedian;
 
          if (distanceToMedian < 0) {
-            if (this.left != null) {
-               max2 = this.left.kNearest(heap, location, k, max2);
+            if (left != null) {
+               max2 = left.kNearest(heap, location, k, max2);
             }
 
-            if ((this.right != null) && ((heap.size() < k) || (d2 < max2))) {
-               max2 = this.right.kNearest(heap, location, k, max2);
+            if ((right != null) && (d2 <= max2)) {
+               max2 = right.kNearest(heap, location, k, max2);
             }
          } else {
-            if (this.right != null) {
-               max2 = this.right.kNearest(heap, location, k, max2);
+            if (right != null) {
+               max2 = right.kNearest(heap, location, k, max2);
             }
 
-            if ((this.left != null) && ((heap.size() < k) || (d2 < max2))) {
-               max2 = this.left.kNearest(heap, location, k, max2);
+            if ((left != null) && (d2 <= max2)) {
+               max2 = left.kNearest(heap, location, k, max2);
             }
          }
       } else {
-         for (final int index : this.indices) {
+         for (final int index : indices) {
             int heapSize = heap.size();
-            final float d2 = RTStatics.getDistanceSquared(this.photons[index].location, location);
+            final float d2 = RTStatics.getDistanceSquared(photons[index].location, location);
 
             if ((d2 < max2)) {
                if (heapSize < k) {
@@ -290,9 +294,9 @@ public class PhotonTree {
       final float m2 = RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE;
 
       // if the current node is not a leaf node, search its children
-      if (this.splitAxis != null) {
+      if (splitAxis != null) {
          // get the distance from the search location to this nodes' median value
-         final float distanceToMedian = location[this.splitAxis.pos] - this.medianValue;
+         final float distanceToMedian = location[splitAxis.pos] - medianValue;
          final float d2 = distanceToMedian * distanceToMedian;
          final float last2 = heap.size() > 0 ? heap.get(heap.lastKey()) : m2;
 
@@ -300,21 +304,21 @@ public class PhotonTree {
          // else, search right first
          if (distanceToMedian <= 0) {
             // if left is not null, search left
-            if (this.left != null) {
-               this.left.kNearestOLD(heap, location, k);
+            if (left != null) {
+               left.kNearestOLD(heap, location, k);
             }
             // right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
-            if ((this.right != null) && ((heap.size() < k) || (d2 < last2)) && (d2 <= m2)) {
-               this.right.kNearestOLD(heap, location, k);
+            if ((right != null) && ((heap.size() < k) || (d2 < last2)) && (d2 <= m2)) {
+               right.kNearestOLD(heap, location, k);
             }
          } else {
             // if right is not null, search right
-            if (this.right != null) {
-               this.right.kNearestOLD(heap, location, k);
+            if (right != null) {
+               right.kNearestOLD(heap, location, k);
             }
             // if right is not null and if the heap isn't full or the distance from median to given location is less than the distance to the last point in the heap
-            if ((this.left != null) && ((heap.size() < k) || (d2 < last2)) && (d2 <= m2)) {
-               this.left.kNearestOLD(heap, location, k);
+            if ((left != null) && ((heap.size() < k) || (d2 < last2)) && (d2 <= m2)) {
+               left.kNearestOLD(heap, location, k);
             }
          }
       }
@@ -327,9 +331,9 @@ public class PhotonTree {
          float currentMax = heapSize == 0 ? RTStatics.COLLECTION_RANGE * RTStatics.COLLECTION_RANGE : heap.get(heap.lastKey());
 
          // iterate over all the children indices
-         for (final int index : this.indices) {
+         for (final int index : indices) {
             // get current point's location
-            tempPos = this.photons[index].location;
+            tempPos = photons[index].location;
             x = tempPos[0] - location[0];
             y = tempPos[1] - location[1];
             z = tempPos[2] - location[2];
@@ -378,32 +382,32 @@ public class PhotonTree {
     */
    private void rangeSearch(final Collection<Integer> list, final float[] location, final float range) {
       // if this node is not a leaf node
-      if (this.splitAxis != null) {
+      if (splitAxis != null) {
          // get distance from search location to current node's split value
-         final float distanceToMedian = location[this.splitAxis.pos] - this.medianValue;
+         final float distanceToMedian = location[splitAxis.pos] - medianValue;
 
          // if left or right are not null (should always be true for a non-leaf node)
-         if ((this.left != null) || (this.right != null)) {
+         if ((left != null) || (right != null)) {
             // if the search location is on the left of the split axis, search left first
             if (distanceToMedian < 0) {
                // if left is not null, search on it
-               if (this.left != null) {
-                  this.left.rangeSearch(list, location, range);
+               if (left != null) {
+                  left.rangeSearch(list, location, range);
                }
                // if right is not null and the distance from the search location is less than or equal to the search range
-               if ((this.right != null) && (distanceToMedian * distanceToMedian <= range * range)) {
-                  this.right.rangeSearch(list, location, range);
+               if ((right != null) && (distanceToMedian * distanceToMedian <= range * range)) {
+                  right.rangeSearch(list, location, range);
                }
             }
             // else, the search location is on the right, so search right first
             else {
                // if right is not null
-               if (this.right != null) {
-                  this.right.rangeSearch(list, location, range);
+               if (right != null) {
+                  right.rangeSearch(list, location, range);
                }
                // if left is not null and the distance from the search location is less than or equal to the search range
-               if ((this.left != null) && (distanceToMedian * distanceToMedian <= range * range)) {
-                  this.left.rangeSearch(list, location, range);
+               if ((left != null) && (distanceToMedian * distanceToMedian <= range * range)) {
+                  left.rangeSearch(list, location, range);
                }
             }
          }
@@ -415,8 +419,8 @@ public class PhotonTree {
          float[] tempPos;
 
          // iterate over children indices and check them against the range
-         for (final int index : this.indices) {
-            tempPos = this.photons[index].location;
+         for (final int index : indices) {
+            tempPos = photons[index].location;
             x = tempPos[0] - location[0];
             y = tempPos[1] - location[1];
             z = tempPos[2] - location[2];
@@ -463,9 +467,9 @@ public class PhotonTree {
       final float[][] minMax = new float[2][3];
 
       // get the min/max for each axis
-      final float[] x = this.getMinMax(points, indices, X_AXIS);
-      final float[] y = this.getMinMax(points, indices, Y_AXIS);
-      final float[] z = this.getMinMax(points, indices, Z_AXIS);
+      final float[] x = this.getMinMax(points, indices, PhotonTree.X_AXIS);
+      final float[] y = this.getMinMax(points, indices, PhotonTree.Y_AXIS);
+      final float[] z = this.getMinMax(points, indices, PhotonTree.Z_AXIS);
 
       // set the values in a matrix
       minMax[0][0] = x[0];
@@ -504,8 +508,8 @@ public class PhotonTree {
     */
    public final Photon get(final int index) {
       // if index is valid, return the point at the given index, else, return null
-      if ((index >= 0) && (index < this.photons.length)) {
-         return this.photons[index];
+      if ((index >= 0) && (index < photons.length)) {
+         return photons[index];
       } else {
          return null;
       }
@@ -580,8 +584,8 @@ public class PhotonTree {
       System.out.println("kNearest output == kNearestLinear output? " + isEqual + "\n");
 
       // print out debugging stats for the kdtree
-      System.out.println("max tree depth:           " + kdtree.maxTreeDepth);
-      System.out.println("number of leaf nodes:     " + kdtree.leafNodes);
-      System.out.println("average indices per leaf: " + (float) kdtree.leafNodeChildrenCount / (float) kdtree.leafNodes);
+      System.out.println("max tree depth:           " + PhotonTree.maxTreeDepth);
+      System.out.println("number of leaf nodes:     " + PhotonTree.leafNodes);
+      System.out.println("average indices per leaf: " + (float) PhotonTree.leafNodeChildrenCount / (float) PhotonTree.leafNodes);
    }
 }

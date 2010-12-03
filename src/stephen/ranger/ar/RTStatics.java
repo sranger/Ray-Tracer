@@ -31,10 +31,10 @@ public class RTStatics {
    // photon mapping settings
    public static float COLLECTION_RANGE = 50f;// Float.MAX_VALUE;
    public static int NUM_REFLECTIONS = 5;
-   public static int NUM_PHOTONS = 250000;
-   public static int COLLECTION_COUNT_THRESHOLD = 10;
+   public static int NUM_PHOTONS = 20000;
+   public static int COLLECTION_COUNT_THRESHOLD = 100;
    public static float STARTING_INTENSITY = 100f;
-   public static int PHOTON_COLLECTION_RAY_COUNT = 4;
+   public static int PHOTON_COLLECTION_RAY_COUNT = 100;
 
    private static JProgressBar PROGRESS_BAR;
 
@@ -48,7 +48,7 @@ public class RTStatics {
       }
 
       public SeparationAxis getNextAxis() {
-         return this.equals(X) ? Y : this.equals(Y) ? Z : X;
+         return equals(X) ? Y : equals(Y) ? Z : X;
       }
    }
 
@@ -76,17 +76,17 @@ public class RTStatics {
    }
 
    public static Vector3f getReflectionDirection(final IntersectionInformation info) {
-      return getReflectionDirection(info.normal, info.ray.direction);
+      return RTStatics.getReflectionDirection(info.normal, info.ray.direction);
    }
 
    public static float leastPositive(final float i, final float j) {
       float retVal;
 
-      if ((i < 0) && (j < 0)) {
+      if (i < 0 && j < 0) {
          retVal = -1;
-      } else if ((i < 0) && (j > 0)) {
+      } else if (i < 0 && j > 0) {
          retVal = j;
-      } else if ((i > 0) && (j < 0)) {
+      } else if (i > 0 && j < 0) {
          retVal = i;
       } else {
          if (i < j) {
@@ -122,7 +122,7 @@ public class RTStatics {
          tymax = (minMax[0][1] - r.origin.y) * divy;
       }
 
-      if ((txmin > tymax) || (tymin > txmax)) {
+      if (txmin > tymax || tymin > txmax) {
          return false;
       }
 
@@ -142,7 +142,7 @@ public class RTStatics {
          tzmax = (minMax[0][2] - r.origin.z) * divz;
       }
 
-      if ((txmin > tzmax) || (tzmin > txmax)) {
+      if (txmin > tzmax || tzmin > txmax) {
          return false;
       }
 
@@ -154,7 +154,7 @@ public class RTStatics {
          txmax = tzmax;
       }
 
-      return (txmin < RTStatics.FAR_PLANE) && (txmax > RTStatics.NEAR_PLANE);
+      return txmin < RTStatics.FAR_PLANE && txmax > RTStatics.NEAR_PLANE;
    }
 
    /**
@@ -343,9 +343,9 @@ public class RTStatics {
     * @return A Quat4f initialized using the given orientation
     */
    public static Quat4f initializeQuat4f(final float[] orientation) {
-      final Quat4f qx = initializeQuat4f(new Vector3f(0, 1, 0), -orientation[0]); // yaw
-      final Quat4f qy = initializeQuat4f(new Vector3f(1, 0, 0), orientation[1]); // pitch
-      final Quat4f qz = initializeQuat4f(new Vector3f(0, 0, 1), -orientation[2]); // roll
+      final Quat4f qx = RTStatics.initializeQuat4f(new Vector3f(0, 1, 0), -orientation[0]); // yaw
+      final Quat4f qy = RTStatics.initializeQuat4f(new Vector3f(1, 0, 0), orientation[1]); // pitch
+      final Quat4f qz = RTStatics.initializeQuat4f(new Vector3f(0, 0, 1), -orientation[2]); // roll
 
       qx.mul(qy);
       qx.mul(qz);
@@ -372,6 +372,15 @@ public class RTStatics {
       return new float[] { r / colors.length, g / colors.length, b / colors.length };
    }
 
+   public static float[] getDepthBufferColor(final IntersectionInformation info, final Camera camera) {
+      final float distance = RTStatics.getDistance(info.intersection, camera.origin);
+      //      System.out.println(distance);
+      final float value = Math.min(1f, (distance - 500f) / 627.1168f);
+      final float[] color = new float[] { value, value, value };
+
+      return color;
+   }
+
    public static float bound(final float min, final float max, final float value) {
       return Math.min(max, Math.max(min, value));
    }
@@ -384,43 +393,43 @@ public class RTStatics {
    private static final DecimalFormat formatter = new DecimalFormat("0.0");
 
    public static void setProgressBar(final JProgressBar bar) {
-      PROGRESS_BAR = bar;
-      PROGRESS_BAR.setStringPainted(true);
-      PROGRESS_BAR.setString("");
+      RTStatics.PROGRESS_BAR = bar;
+      RTStatics.PROGRESS_BAR.setStringPainted(true);
+      RTStatics.PROGRESS_BAR.setString("");
    }
 
    public static void setProgressBarMinMax(final int min, final int max) {
-      if (PROGRESS_BAR != null) {
+      if (RTStatics.PROGRESS_BAR != null) {
          RTStatics.min = min;
          RTStatics.max = max;
-         startTime = System.nanoTime();
+         RTStatics.startTime = System.nanoTime();
 
-         PROGRESS_BAR.setMinimum(min);
-         PROGRESS_BAR.setMaximum(max);
+         RTStatics.PROGRESS_BAR.setMinimum(min);
+         RTStatics.PROGRESS_BAR.setMaximum(max);
       }
    }
 
    public static void setProgressBarValue(final int value) {
-      if (PROGRESS_BAR != null) {
-         currentTime = System.nanoTime();
-         PROGRESS_BAR.setValue(value);
+      if (RTStatics.PROGRESS_BAR != null) {
+         RTStatics.currentTime = System.nanoTime();
+         RTStatics.PROGRESS_BAR.setValue(value);
 
-         final double percentageDone = value / ((double) max - (double) min);
-         final double seconds = (currentTime - startTime) / 1000000000.;
-         PROGRESS_BAR.setString(currentString + " (ETA: " + formatter.format(seconds / percentageDone - seconds) + " seconds)");
+         final double percentageDone = value / ((double) RTStatics.max - (double) RTStatics.min);
+         final double seconds = (RTStatics.currentTime - RTStatics.startTime) / 1000000000.;
+         RTStatics.PROGRESS_BAR.setString(RTStatics.currentString + " (ETA: " + RTStatics.formatter.format(seconds / percentageDone - seconds) + " seconds)");
       }
    }
 
    public static void setProgressBarString(final String string) {
-      if (PROGRESS_BAR != null) {
-         currentString = string;
-         PROGRESS_BAR.setString(string);
+      if (RTStatics.PROGRESS_BAR != null) {
+         RTStatics.currentString = string;
+         RTStatics.PROGRESS_BAR.setString(string);
       }
    }
 
    public static void incrementProgressBarValue(final int inc) {
-      if (PROGRESS_BAR != null) {
-         RTStatics.setProgressBarValue(PROGRESS_BAR.getValue() + inc);
+      if (RTStatics.PROGRESS_BAR != null) {
+         RTStatics.setProgressBarValue(RTStatics.PROGRESS_BAR.getValue() + inc);
       }
    }
 
@@ -474,25 +483,25 @@ public class RTStatics {
       float[] rgb = new float[3];
 
       switch (i) {
-         case 6:
-         case 0:
-            rgb = new float[] { v, n, m };
-            break;
-         case 1:
-            rgb = new float[] { n, v, m };
-            break;
-         case 2:
-            rgb = new float[] { m, v, n };
-            break;
-         case 3:
-            rgb = new float[] { m, n, v };
-            break;
-         case 4:
-            rgb = new float[] { n, m, v };
-            break;
-         case 5:
-            rgb = new float[] { v, m, n };
-            break;
+      case 6:
+      case 0:
+         rgb = new float[] { v, n, m };
+         break;
+      case 1:
+         rgb = new float[] { n, v, m };
+         break;
+      case 2:
+         rgb = new float[] { m, v, n };
+         break;
+      case 3:
+         rgb = new float[] { m, n, v };
+         break;
+      case 4:
+         rgb = new float[] { n, m, v };
+         break;
+      case 5:
+         rgb = new float[] { v, m, n };
+         break;
       }
 
       rgb[0] = Math.min(1f, Math.max(0f, rgb[0]));
@@ -510,18 +519,18 @@ public class RTStatics {
     * @return
     */
    public static boolean aabbIntersection(final float[][] minMax, final float[][] minMax2) {
-      if ((minMax[0][0] >= minMax2[0][0]) && (minMax[1][0] <= minMax2[1][0]) && (minMax[0][1] >= minMax2[0][1]) && (minMax[1][1] <= minMax2[1][1])
-            && (minMax[0][2] >= minMax2[0][2]) && (minMax[1][2] <= minMax2[1][2])) {
+      if (minMax[0][0] >= minMax2[0][0] && minMax[1][0] <= minMax2[1][0] && minMax[0][1] >= minMax2[0][1] && minMax[1][1] <= minMax2[1][1]
+            && minMax[0][2] >= minMax2[0][2] && minMax[1][2] <= minMax2[1][2]) {
          return true;
       }
 
-      if ((minMax2[1][0] < minMax[0][0]) || (minMax2[0][0] > minMax[1][0])) {
+      if (minMax2[1][0] < minMax[0][0] || minMax2[0][0] > minMax[1][0]) {
          return false;
       }
-      if ((minMax2[1][1] < minMax[0][1]) || (minMax2[0][1] > minMax[1][1])) {
+      if (minMax2[1][1] < minMax[0][1] || minMax2[0][1] > minMax[1][1]) {
          return false;
       }
-      if ((minMax2[1][2] < minMax[0][2]) || (minMax2[0][2] > minMax[1][2])) {
+      if (minMax2[1][2] < minMax[0][2] || minMax2[0][2] > minMax[1][2]) {
          return false;
       }
 
@@ -563,11 +572,11 @@ public class RTStatics {
       if (right - left > 0) {
          pivot = (left + right) / 2;
 
-         while ((leftIdx <= pivot) && (rightIdx >= pivot)) {
-            while ((compare(photons[indices[leftIdx]], photons[indices[pivot]], axis) < 0) && (leftIdx <= pivot)) {
+         while (leftIdx <= pivot && rightIdx >= pivot) {
+            while (RTStatics.compare(photons[indices[leftIdx]], photons[indices[pivot]], axis) < 0 && leftIdx <= pivot) {
                leftIdx++;
             }
-            while ((compare(photons[indices[rightIdx]], photons[indices[pivot]], axis) > 0) && (rightIdx >= pivot)) {
+            while (RTStatics.compare(photons[indices[rightIdx]], photons[indices[pivot]], axis) > 0 && rightIdx >= pivot) {
                rightIdx--;
             }
 
@@ -587,8 +596,8 @@ public class RTStatics {
             }
          }
 
-         quicksort(photons, indices, left, pivot - 1, axis);
-         quicksort(photons, indices, pivot + 1, right, axis);
+         RTStatics.quicksort(photons, indices, left, pivot - 1, axis);
+         RTStatics.quicksort(photons, indices, pivot + 1, right, axis);
       }
    }
 
@@ -616,7 +625,7 @@ public class RTStatics {
       for (final BoundingVolume object : objects) {
          shadowInfo = object.getChildIntersection(shadowRay, depth + 1);
 
-         if ((shadowInfo != null) && (shadowInfo.w > RTStatics.EPSILON)) {
+         if (shadowInfo != null && shadowInfo.w > RTStatics.EPSILON) {
             final float lightDistance = RTStatics.getDistance(shadowInfo.intersection, light.origin);
 
             if (shadowInfo.w < lightDistance + RTStatics.EPSILON) {
