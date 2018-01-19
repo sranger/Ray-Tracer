@@ -126,8 +126,7 @@ public class Camera {
             final float yInc = -Camera.this.viewportHeight / Camera.this.screenHeight;
             final long startTime = System.nanoTime();
 
-            final int temp = Runtime.getRuntime().availableProcessors();
-            final int cpus = Math.max(1, temp - 1);
+            final int cpus = Runtime.getRuntime().availableProcessors();
             final List<RenderThread> threads = new ArrayList<RenderThread>();
             final Random random = new Random();
 

@@ -115,27 +115,27 @@ public class RayTracer {
          final BoundingVolume[] volumes = RayTracer.getWhittedObjects(true);
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new LightingModel(), 35f);
       } else if (scene.equals(Scenes.STANFORD_BUNNY)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/bunny/reconstruction/bun_zipper.ply"),
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir, "bunny/reconstruction/bun_zipper.ply"),
                new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 15f);
       } else if (scene.equals(Scenes.STANFORD_DRAGON)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/dragon_recon/dragon_vrip.ply"),
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir, "dragon_recon/dragon_vrip.ply"),
                new ColorInformation(new Color(0.9f, 0.9f, 0.9f, 1f)), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 23f);
       } else if (scene.equals(Scenes.STANFORD_BUDDHA)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/happy_recon/happy_vrip.ply"),
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir, "happy_recon/happy_vrip.ply"),
                new ColorInformation(Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.STANFORD_LUCY)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/lucy.ply"), new ColorInformation(Color.white),
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir, "lucy.ply"), new ColorInformation(Color.white),
                useKDTree).getBoundingVolume() };
-         return new Scene(volumes, light, new float[] { 180, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
+         return new Scene(volumes, light, new float[] { 0, -90, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.XYZ_DRAGON)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/xyzrgb_dragon.ply"), new ColorInformation(
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir, "xyzrgb_dragon.ply/data"), new ColorInformation(
                Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light2, new float[] { 220, 0, 0 }, new PhongLightingModel(light2, volumes), 20f);
       } else if (scene.equals(Scenes.XYZ_THAI_STATUE)) {
-         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir + "models/xyzrgb_statuette.ply"), new ColorInformation(
+         final BoundingVolume[] volumes = new BoundingVolume[] { new TriangleMesh(new File(baseDir, "xyzrgb_statuette.ply/data"), new ColorInformation(
                Color.white), useKDTree).getBoundingVolume() };
          return new Scene(volumes, light, new float[] { 0, 0, 0 }, new PhongLightingModel(light, volumes), 10f);
       } else if (scene.equals(Scenes.CORNELL_BOX)) {
@@ -168,9 +168,9 @@ public class RayTracer {
 
    /**
     * http://www.cs.uiowa.edu/~cwyman/classes/spring07-22C251/code/cornellBoxScene.txt
-    * 
+    *
     * http://www.graphics.cornell.edu/online/box/data.html
-    * 
+    *
     * @return
     */
    private static final BoundingVolume[] getCornellBox(final boolean useSpheres, final boolean useWhittedMaterials) {
